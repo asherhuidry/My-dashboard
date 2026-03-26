@@ -109,16 +109,16 @@ def test_requirements_txt_exists() -> None:
 
 def test_env_loader_raises_on_missing_var(monkeypatch: object) -> None:
     """Verify skills/env.py raises RuntimeError for unset variables."""
-    import importlib
     import sys
+    from unittest.mock import patch
+    import pytest
 
-    # Ensure env module is freshly imported without .env loaded
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     if "skills.env" in sys.modules:
         del sys.modules["skills.env"]
 
-    from skills.env import _require
-    import pytest
-
-    with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
-        _require("ANTHROPIC_API_KEY")
+    # Patch load_dotenv so re-importing skills.env doesn't reload .env from disk
+    with patch("dotenv.load_dotenv"):
+        from skills.env import _require
+        with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
+            _require("ANTHROPIC_API_KEY")

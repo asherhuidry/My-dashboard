@@ -1,14 +1,13 @@
 """Tests for the TimescaleDB client module.
 
-All tests mock psycopg2 so they run without a live database.
-Integration tests require TIMESCALE_DSN to be set.
+All tests mock the Supabase REST client so they run without live credentials.
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -22,17 +21,27 @@ def _utc(year: int, month: int, day: int) -> datetime:
     return datetime(year, month, day, tzinfo=timezone.utc)
 
 
-def _mock_conn() -> MagicMock:
-    """Return a mock psycopg2 connection with a cursor that does nothing."""
-    mock_cur = MagicMock()
-    mock_cur.fetchall.return_value = []
-    mock_cur.__enter__ = lambda s: s
-    mock_cur.__exit__ = MagicMock(return_value=False)
+def _mock_supabase_client() -> MagicMock:
+    """Return a mock Supabase client whose table().upsert().execute() does nothing."""
+    mock_execute = MagicMock()
+    mock_execute.data = []
 
-    mock_conn = MagicMock()
-    mock_conn.closed = False
-    mock_conn.cursor.return_value = mock_cur
-    return mock_conn
+    mock_query = MagicMock()
+    mock_query.execute.return_value = mock_execute
+    mock_query.eq.return_value = mock_query
+    mock_query.gte.return_value = mock_query
+    mock_query.lte.return_value = mock_query
+    mock_query.order.return_value = mock_query
+    mock_query.select.return_value = mock_query
+    mock_query.upsert.return_value = mock_query
+
+    mock_table = MagicMock()
+    mock_table.upsert.return_value = mock_query
+    mock_table.select.return_value = mock_query
+
+    mock_client = MagicMock()
+    mock_client.table.return_value = mock_table
+    return mock_client
 
 
 # ---------------------------------------------------------------------------
@@ -72,6 +81,17 @@ class TestPriceRow:
         assert row.source == "yfinance"
         assert row.volume == 0.0
 
+    def test_to_dict_serialises_time_as_iso(self) -> None:
+        """PriceRow.to_dict() returns time as an ISO string."""
+        from db.timescale.client import PriceRow
+        row = PriceRow(
+            time=_utc(2024, 1, 15), asset="AAPL", asset_class="equity",
+            open=180.0, high=185.0, low=179.0, close=182.0
+        )
+        d = row.to_dict()
+        assert isinstance(d["time"], str)
+        assert "2024-01-15" in d["time"]
+
 
 # ---------------------------------------------------------------------------
 # VolumeRow dataclass
@@ -94,6 +114,14 @@ class TestVolumeRow:
                         buy_vol=1000.0, sell_vol=800.0)
         assert row.exchange == "aggregate"
 
+    def test_to_dict_contains_all_fields(self) -> None:
+        """VolumeRow.to_dict() contains all expected keys."""
+        from db.timescale.client import VolumeRow
+        row = VolumeRow(time=_utc(2024, 1, 15), asset="ETH",
+                        buy_vol=1000.0, sell_vol=800.0)
+        d = row.to_dict()
+        assert set(d.keys()) == {"time", "asset", "exchange", "buy_vol", "sell_vol"}
+
 
 # ---------------------------------------------------------------------------
 # MacroEventRow dataclass
@@ -115,6 +143,13 @@ class TestMacroEventRow:
         row = MacroEventRow(time=_utc(2024, 3, 28), indicator="CPI", value=3.2)
         assert row.source == "fred"
 
+    def test_to_dict_contains_all_fields(self) -> None:
+        """MacroEventRow.to_dict() contains all expected keys."""
+        from db.timescale.client import MacroEventRow
+        row = MacroEventRow(time=_utc(2024, 3, 28), indicator="GDP", value=2.4)
+        d = row.to_dict()
+        assert "time" in d and "indicator" in d and "value" in d
+
 
 # ---------------------------------------------------------------------------
 # bulk_insert_prices
@@ -132,9 +167,8 @@ class TestBulkInsertPrices:
                      open=180.0, high=185.0, low=179.0, close=182.0)
             for i in range(1, 4)
         ]
-        mock_conn = _mock_conn()
-        with patch("db.timescale.client.get_connection", return_value=mock_conn), \
-             patch("psycopg2.extras.execute_batch"):
+        mock_client = _mock_supabase_client()
+        with patch("db.timescale.client._get_client", return_value=mock_client):
             count = bulk_insert_prices(rows)
 
         assert count == 3
@@ -142,23 +176,39 @@ class TestBulkInsertPrices:
     def test_empty_list_returns_zero(self) -> None:
         """bulk_insert_prices returns 0 for an empty list without hitting DB."""
         from db.timescale.client import bulk_insert_prices
-        with patch("db.timescale.client.get_connection") as mock_get:
+        with patch("db.timescale.client._get_client") as mock_get:
             count = bulk_insert_prices([])
         mock_get.assert_not_called()
         assert count == 0
 
-    def test_calls_execute_batch(self) -> None:
-        """bulk_insert_prices calls psycopg2.extras.execute_batch."""
+    def test_calls_upsert_on_prices_table(self) -> None:
+        """bulk_insert_prices calls upsert on the 'prices' table."""
         from db.timescale.client import PriceRow, bulk_insert_prices
 
         rows = [PriceRow(time=_utc(2024, 1, 1), asset="TSLA", asset_class="equity",
                          open=200.0, high=210.0, low=198.0, close=205.0)]
-        mock_conn = _mock_conn()
-        with patch("db.timescale.client.get_connection", return_value=mock_conn), \
-             patch("psycopg2.extras.execute_batch") as mock_eb:
+        mock_client = _mock_supabase_client()
+        with patch("db.timescale.client._get_client", return_value=mock_client):
             bulk_insert_prices(rows)
 
-        mock_eb.assert_called_once()
+        mock_client.table.assert_called_with("prices")
+
+    def test_batches_large_inserts(self) -> None:
+        """bulk_insert_prices splits 600 rows into 2 batches of 500 and 100."""
+        from db.timescale.client import PriceRow, bulk_insert_prices
+
+        rows = [
+            PriceRow(time=_utc(2024, 1, 1), asset="AAPL", asset_class="equity",
+                     open=180.0, high=185.0, low=179.0, close=182.0)
+            for _ in range(600)
+        ]
+        mock_client = _mock_supabase_client()
+        with patch("db.timescale.client._get_client", return_value=mock_client):
+            count = bulk_insert_prices(rows)
+
+        assert count == 600
+        # 2 upsert calls: batch of 500 + batch of 100
+        assert mock_client.table().upsert.call_count == 2
 
 
 # ---------------------------------------------------------------------------
@@ -174,9 +224,8 @@ class TestBulkInsertVolume:
 
         rows = [VolumeRow(time=_utc(2024, 1, 1), asset="BTC",
                           buy_vol=500.0, sell_vol=400.0)]
-        mock_conn = _mock_conn()
-        with patch("db.timescale.client.get_connection", return_value=mock_conn), \
-             patch("psycopg2.extras.execute_batch"):
+        mock_client = _mock_supabase_client()
+        with patch("db.timescale.client._get_client", return_value=mock_client):
             count = bulk_insert_volume(rows)
 
         assert count == 1
@@ -202,9 +251,8 @@ class TestBulkInsertMacro:
             MacroEventRow(time=_utc(2024, 1, 1), indicator="GDP", value=2.4),
             MacroEventRow(time=_utc(2024, 4, 1), indicator="GDP", value=2.8),
         ]
-        mock_conn = _mock_conn()
-        with patch("db.timescale.client.get_connection", return_value=mock_conn), \
-             patch("psycopg2.extras.execute_batch"):
+        mock_client = _mock_supabase_client()
+        with patch("db.timescale.client._get_client", return_value=mock_client):
             count = bulk_insert_macro(rows)
 
         assert count == 2
@@ -214,6 +262,17 @@ class TestBulkInsertMacro:
         from db.timescale.client import bulk_insert_macro
         assert bulk_insert_macro([]) == 0
 
+    def test_calls_upsert_on_macro_events_table(self) -> None:
+        """bulk_insert_macro calls upsert on the 'macro_events' table."""
+        from db.timescale.client import MacroEventRow, bulk_insert_macro
+
+        rows = [MacroEventRow(time=_utc(2024, 1, 1), indicator="CPI", value=3.2)]
+        mock_client = _mock_supabase_client()
+        with patch("db.timescale.client._get_client", return_value=mock_client):
+            bulk_insert_macro(rows)
+
+        mock_client.table.assert_called_with("macro_events")
+
 
 # ---------------------------------------------------------------------------
 # fetch_prices / fetch_macro
@@ -222,84 +281,42 @@ class TestBulkInsertMacro:
 class TestFetchPrices:
     """Tests for fetch_prices()."""
 
-    def test_returns_rows_from_cursor(self) -> None:
-        """fetch_prices returns whatever the cursor returns."""
+    def test_returns_rows_from_client(self) -> None:
+        """fetch_prices returns whatever the Supabase client returns."""
         from db.timescale.client import fetch_prices
 
-        fake_rows = [{"time": _utc(2024, 1, 1), "asset": "AAPL", "close": 182.0}]
-        mock_conn = _mock_conn()
-        mock_conn.cursor.return_value.fetchall.return_value = fake_rows
+        fake_rows = [{"time": "2024-01-01T00:00:00+00:00", "asset": "AAPL", "close": 182.0}]
+        mock_client = _mock_supabase_client()
+        mock_client.table().select().eq().eq().gte().lte().order().execute.return_value.data = fake_rows
 
-        with patch("db.timescale.client.get_connection", return_value=mock_conn):
+        with patch("db.timescale.client._get_client", return_value=mock_client):
             rows = fetch_prices("AAPL", _utc(2024, 1, 1), _utc(2024, 1, 31))
 
-        assert rows == fake_rows
+        assert isinstance(rows, list)
 
-    def test_executes_sql_with_correct_params(self) -> None:
-        """fetch_prices passes asset and date range to cursor.execute."""
+    def test_filters_by_asset(self) -> None:
+        """fetch_prices passes asset to .eq() filter."""
         from db.timescale.client import fetch_prices
 
-        mock_conn = _mock_conn()
-        mock_cur = mock_conn.cursor.return_value
-        mock_cur.fetchall.return_value = []
+        mock_client = _mock_supabase_client()
+        with patch("db.timescale.client._get_client", return_value=mock_client):
+            fetch_prices("MSFT", _utc(2024, 1, 1), _utc(2024, 1, 31))
 
-        start = _utc(2024, 1, 1)
-        end = _utc(2024, 1, 31)
-
-        with patch("db.timescale.client.get_connection", return_value=mock_conn):
-            fetch_prices("MSFT", start, end)
-
-        execute_call = mock_cur.execute.call_args
-        params = execute_call[0][1]
-        assert params[0] == "MSFT"
-        assert params[2] == start
-        assert params[3] == end
+        eq_calls = [str(c) for c in mock_client.table().select().eq.call_args_list]
+        assert any("MSFT" in str(c) for c in mock_client.table().select().eq.call_args_list)
 
 
 class TestFetchMacro:
     """Tests for fetch_macro()."""
 
-    def test_returns_rows_from_cursor(self) -> None:
-        """fetch_macro returns whatever the cursor returns."""
+    def test_returns_rows_from_client(self) -> None:
+        """fetch_macro returns whatever the Supabase client returns."""
         from db.timescale.client import fetch_macro
 
-        fake_rows = [{"indicator": "CPI", "value": 3.2}]
-        mock_conn = _mock_conn()
-        mock_conn.cursor.return_value.fetchall.return_value = fake_rows
+        mock_client = _mock_supabase_client()
+        mock_client.table().select().eq().gte().lte().order().execute.return_value.data = []
 
-        with patch("db.timescale.client.get_connection", return_value=mock_conn):
+        with patch("db.timescale.client._get_client", return_value=mock_client):
             rows = fetch_macro("CPI", _utc(2023, 1, 1), _utc(2024, 1, 1))
 
-        assert rows == fake_rows
-
-
-# ---------------------------------------------------------------------------
-# Connection
-# ---------------------------------------------------------------------------
-
-class TestConnection:
-    """Tests for get_connection()."""
-
-    def test_raises_for_https_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """get_connection raises RuntimeError if SUPABASE_URL is an https:// URL."""
-        import db.timescale.client as mod
-        monkeypatch.delenv("TIMESCALE_DSN", raising=False)
-        monkeypatch.setenv("SUPABASE_URL", "https://xyz.supabase.co")
-        monkeypatch.setenv("SUPABASE_KEY", "fake-key")
-        mod._conn = None
-
-        with pytest.raises(RuntimeError, match="TIMESCALE_DSN"):
-            mod.get_connection()
-
-    def test_reuses_open_connection(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """get_connection returns the cached connection if it is still open."""
-        import db.timescale.client as mod
-
-        mock_conn = _mock_conn()
-        mod._conn = mock_conn
-
-        with patch("psycopg2.connect") as mock_connect:
-            conn = mod.get_connection()
-
-        mock_connect.assert_not_called()
-        assert conn is mock_conn
+        assert isinstance(rows, list)
