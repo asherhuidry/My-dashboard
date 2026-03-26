@@ -1,0 +1,71 @@
+name: Daily Analysis & Feature Compute
+
+on:
+  schedule:
+    - cron: '30 6 * * 1-5'  # 6:30 AM UTC weekdays (market pre-open)
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install yfinance supabase fredapi structlog python-dotenv numpy pandas scikit-learn
+
+      - name: Run noise filter on latest data
+        env:
+          SUPABASE_URL:  ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:  ${{ secrets.SUPABASE_KEY }}
+        run: python -c "
+          from data.agents.noise_filter import NoiseFilter
+          nf = NoiseFilter()
+          result = nf.run()
+          print('Noise filter result:', result)
+        "
+        continue-on-error: true
+
+      - name: Run data quality check
+        env:
+          SUPABASE_URL:  ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:  ${{ secrets.SUPABASE_KEY }}
+        run: python -c "
+          from supabase import create_client
+          import os
+          client = create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_KEY'])
+          res = client.table('prices').select('*', count='exact').limit(1).execute()
+          print(f'Prices table: {res.count} rows')
+          res = client.table('macro_events').select('*', count='exact').limit(1).execute()
+          print(f'Macro events: {res.count} rows')
+        "
+
+      - name: Log to evolution log
+        env:
+          SUPABASE_URL:  ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:  ${{ secrets.SUPABASE_KEY }}
+        run: python -c "
+          from supabase import create_client
+          from datetime import datetime, timezone
+          import os
+          client = create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_KEY'])
+          client.table('evolution_log').insert({
+            'agent_name': 'daily_analysis',
+            'action': 'daily_analysis_run',
+            'status': 'completed',
+            'summary': 'Daily analysis workflow completed successfully',
+            'created_at': datetime.now(timezone.utc).isoformat()
+          }).execute()
+          print('Logged to evolution_log')
+        "
+        continue-on-error: true

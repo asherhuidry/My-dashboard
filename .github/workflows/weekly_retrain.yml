@@ -1,0 +1,74 @@
+name: Weekly Model Retrain
+
+on:
+  schedule:
+    - cron: '0 4 * * 0'   # 4 AM UTC every Sunday
+  workflow_dispatch:
+    inputs:
+      assets:
+        description: 'Space-separated list of tickers (leave blank for defaults)'
+        required: false
+        default: ''
+      epochs:
+        description: 'Max training epochs'
+        required: false
+        default: '80'
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install CPU-only PyTorch + dependencies
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install yfinance supabase structlog python-dotenv numpy pandas scikit-learn
+
+      - name: Train LSTM model
+        env:
+          SUPABASE_URL:  ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:  ${{ secrets.SUPABASE_KEY }}
+        run: |
+          ASSETS="${{ github.event.inputs.assets }}"
+          EPOCHS="${{ github.event.inputs.epochs || '80' }}"
+          if [ -z "$ASSETS" ]; then
+            python -m ml.patterns.train --epochs $EPOCHS
+          else
+            python -m ml.patterns.train --assets $ASSETS --epochs $EPOCHS
+          fi
+
+      - name: Upload checkpoint artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lstm-checkpoint-${{ github.run_number }}
+          path: ml/checkpoints/*.pt
+          retention-days: 30
+
+      - name: Log to evolution log
+        env:
+          SUPABASE_URL:  ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:  ${{ secrets.SUPABASE_KEY }}
+        run: python -c "
+          from supabase import create_client
+          from datetime import datetime, timezone
+          import os
+          client = create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_KEY'])
+          client.table('evolution_log').insert({
+            'agent_name': 'model_trainer',
+            'action': 'lstm_retrain',
+            'status': 'completed',
+            'summary': 'Weekly LSTM retrain completed. Checkpoint saved as artifact.',
+            'created_at': datetime.now(timezone.utc).isoformat()
+          }).execute()
+        "
+        continue-on-error: true

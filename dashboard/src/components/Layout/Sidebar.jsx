@@ -1,12 +1,13 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, LineChart, Database, Activity, Network, Brain } from 'lucide-react'
+import { LayoutDashboard, LineChart, Database, Activity, Network, Brain, SlidersHorizontal } from 'lucide-react'
 
 const nav = [
-  { to:'/',          icon: LayoutDashboard, label: 'Overview'   },
-  { to:'/analyze',   icon: LineChart,       label: 'Analyzer'   },
-  { to:'/network',   icon: Network,         label: 'Network'    },
-  { to:'/database',  icon: Database,        label: 'Database'   },
-  { to:'/evolution', icon: Activity,        label: 'Evolution'  },
+  { to:'/',          icon: LayoutDashboard,  label: 'Overview'  },
+  { to:'/analyze',   icon: LineChart,        label: 'Analyzer'  },
+  { to:'/screener',  icon: SlidersHorizontal,label: 'Screener'  },
+  { to:'/network',   icon: Network,          label: 'Network'   },
+  { to:'/database',  icon: Database,         label: 'Database'  },
+  { to:'/evolution', icon: Activity,         label: 'Evolution' },
 ]
 
 export default function Sidebar() {
@@ -46,10 +47,11 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer */}
+      {/* AI badge */}
       <div className="p-3 border-t border-border hidden lg:block">
-        <div className="text-[10px] text-text-muted text-center uppercase tracking-widest">
-          Phase 1 · Build {import.meta.env.VITE_BUILD ?? '1.0'}
+        <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-accent/5 border border-accent/15">
+          <div className="w-1.5 h-1.5 rounded-full bg-positive pulse-dot" style={{'--tw-bg-opacity':'1'}} />
+          <span className="text-[10px] text-text-muted">AI Chat Active</span>
         </div>
       </div>
     </aside>

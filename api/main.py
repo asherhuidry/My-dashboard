@@ -1,10 +1,15 @@
 """FinBrain FastAPI application entry point."""
 from __future__ import annotations
 
+import asyncio
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import health, prices, analysis, search, db_stats, evolution, graph
+from api.routes import health, prices, analysis, search, db_stats, evolution, graph, chat, screener, ws
+
+log = logging.getLogger(__name__)
 
 app = FastAPI(
     title="FinBrain API",
@@ -14,7 +19,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -27,3 +32,13 @@ app.include_router(analysis.router,  prefix="/api")
 app.include_router(db_stats.router,  prefix="/api")
 app.include_router(evolution.router, prefix="/api")
 app.include_router(graph.router,     prefix="/api")
+app.include_router(chat.router,      prefix="/api")
+app.include_router(screener.router,  prefix="/api")
+app.include_router(ws.router)        # WebSocket has no /api prefix for ws://
+
+
+@app.on_event("startup")
+async def startup_event() -> None:
+    """Launch background price polling task."""
+    asyncio.create_task(ws.price_polling_loop())
+    log.info("FinBrain API started — price polling active")
