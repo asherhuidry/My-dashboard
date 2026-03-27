@@ -20,8 +20,13 @@ from ml.graph.schema import (
     GraphEdge,
 )
 from ml.graph.store import GraphStore
-from ml.graph.converter import nodes_from_claim, edge_from_claim
+from ml.graph.converter import (
+    nodes_from_claim,
+    edge_from_claim,
+    claim_status_to_edge_status,
+)
 from ml.graph.enrichment import enrich_graph_from_claims, EnrichmentReport
+from ml.graph.sync import sync_graph_from_store, SyncReport
 
 __all__ = [
     # schema
@@ -34,7 +39,11 @@ __all__ = [
     # converter
     "nodes_from_claim",
     "edge_from_claim",
+    "claim_status_to_edge_status",
     # enrichment
     "enrich_graph_from_claims",
     "EnrichmentReport",
+    # sync
+    "sync_graph_from_store",
+    "SyncReport",
 ]

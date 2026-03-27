@@ -35,6 +35,21 @@ _CLAIM_TO_EDGE_STATUS: dict[ClaimStatus, GraphEdgeStatus] = {
 }
 
 
+def claim_status_to_edge_status(claim_status: ClaimStatus) -> GraphEdgeStatus:
+    """Map a ClaimStatus to the corresponding GraphEdgeStatus.
+
+    This is the single authoritative mapping used by both the converter and
+    the sync layer.  Falls back to PROPOSED for any unknown status.
+
+    Args:
+        claim_status: A ClaimStatus enum value.
+
+    Returns:
+        The corresponding GraphEdgeStatus.
+    """
+    return _CLAIM_TO_EDGE_STATUS.get(claim_status, GraphEdgeStatus.PROPOSED)
+
+
 # ── Public helpers ─────────────────────────────────────────────────────────────
 
 def nodes_from_claim(claim: Claim) -> list[GraphNode]:
@@ -79,7 +94,7 @@ def edge_from_claim(
         A new GraphEdge (UUID assigned).
     """
     if status is None:
-        status = _CLAIM_TO_EDGE_STATUS.get(claim.status, GraphEdgeStatus.PROPOSED)
+        status = claim_status_to_edge_status(claim.status)
 
     props: dict[str, Any] = {}
     if claim.uncertainty_notes:

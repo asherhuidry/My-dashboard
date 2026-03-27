@@ -169,6 +169,42 @@ class GraphStore:
         self._edges[edge.edge_id] = edge
         self._save()
 
+    def update_edge_status(
+        self,
+        edge_id:    str,
+        new_status: GraphEdgeStatus,
+        notes:      str = "",
+    ) -> None:
+        """Update the status of an existing edge in place.
+
+        Args:
+            edge_id:    ID of the edge to update.
+            new_status: The new GraphEdgeStatus value.
+            notes:      Optional note appended to ``properties["sync_notes"]``.
+
+        Raises:
+            KeyError: If ``edge_id`` does not exist in the store.
+        """
+        if edge_id not in self._edges:
+            raise KeyError(f"Edge '{edge_id}' not found.")
+        edge = self._edges[edge_id]
+        edge.status     = new_status
+        edge.updated_at = datetime.now(tz=timezone.utc).isoformat()
+        if notes:
+            edge.properties["sync_notes"] = notes
+        self._save()
+
+    def has_edge_for_claim(self, claim_id: str) -> bool:
+        """Return True if at least one edge exists for the given claim.
+
+        Args:
+            claim_id: The claim ID to look up.
+
+        Returns:
+            True if any edge has ``claim_id`` matching, False otherwise.
+        """
+        return any(e.claim_id == claim_id for e in self._edges.values())
+
     def get_edge(self, edge_id: str) -> GraphEdge | None:
         """Return the edge with the given ID, or None if not found."""
         return self._edges.get(edge_id)
