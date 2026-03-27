@@ -1,0 +1,198 @@
+{
+  "version": "1",
+  "updated_at": "2026-03-27T19:57:54.252629+00:00",
+  "sources": [
+    {
+      "source_id": "ecb_statistical_data_warehouse",
+      "name": "ECB Statistical Data Warehouse",
+      "category": "macro",
+      "url": "https://sdw-wsrest.ecb.europa.eu/service",
+      "acquisition_method": "api",
+      "auth_required": false,
+      "free_tier": true,
+      "rate_limit_notes": "",
+      "update_frequency": "daily",
+      "asset_classes": [
+        "macro"
+      ],
+      "data_types": [
+        "yields",
+        "inflation",
+        "money_supply",
+        "exchange_rates"
+      ],
+      "reliability_score": 0.9175,
+      "status": "validated",
+      "notes": "ECB REST API (SDMX). Euro area macro series. No key needed.\n[probe 2026-03-27] | method=HEAD | status=n/a | ok=False | latency=11109ms | error='URLError: [Errno 11001] getaddrinfo failed'\n[probe 2026-03-27] | method=HEAD | status=n/a | ok=False | latency=172ms | error='URLError: [Errno 11001] getaddrinfo failed'\nManually advanced: known-good official API, probe returned 405 on base URL\nKnown-good: active connector exists in codebase",
+      "discovered_at": "2026-03-27T19:55:31.927491+00:00",
+      "last_checked_at": "2026-03-27T19:57:54.247630+00:00"
+    },
+    {
+      "source_id": "us_treasury_yield_curve_treasury_gov",
+      "name": "US Treasury Yield Curve (Treasury.gov)",
+      "category": "macro",
+      "url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates",
+      "acquisition_method": "file_download",
+      "auth_required": false,
+      "free_tier": true,
+      "rate_limit_notes": "",
+      "update_frequency": "daily",
+      "asset_classes": [
+        "bond",
+        "macro"
+      ],
+      "data_types": [
+        "yields"
+      ],
+      "reliability_score": 0.8375,
+      "status": "validated",
+      "notes": "Daily Treasury par yield curve rates. CSV download. Official US government source.\n[probe 2026-03-27] | method=HEAD | status=404 | ok=True | latency=250ms | error='HTTPError 404: Not Found'\n[sample 2026-03-27] | action=error | http=404 | latency=234ms\n[probe 2026-03-27] | method=HEAD | status=404 | ok=True | latency=203ms | error='HTTPError 404: Not Found'\n[sample 2026-03-27] | action=error | http=503 | latency=891ms\nProbe succeeded, known official source",
+      "discovered_at": "2026-03-27T19:55:31.927491+00:00",
+      "last_checked_at": "2026-03-27T19:57:54.252629+00:00"
+    },
+    {
+      "source_id": "oecd_data_api",
+      "name": "OECD Data API",
+      "category": "macro",
+      "url": "https://data.oecd.org/api",
+      "acquisition_method": "api",
+      "auth_required": false,
+      "free_tier": true,
+      "rate_limit_notes": "",
+      "update_frequency": "monthly",
+      "asset_classes": [
+        "macro"
+      ],
+      "data_types": [
+        "gdp",
+        "inflation",
+        "employment",
+        "trade"
+      ],
+      "reliability_score": 0.9175,
+      "status": "validated",
+      "notes": "OECD SDMX-JSON API. Cross-country macro data. No key needed.\n[probe 2026-03-27] | method=HEAD | status=403 | ok=True | latency=141ms | error='HTTPError 403: Forbidden'\n[sample 2026-03-27] | action=error | http=403 | latency=94ms\n[probe 2026-03-27] | method=HEAD | status=403 | ok=True | latency=110ms | error='HTTPError 403: Forbidden'\n[sample 2026-03-27] | action=error | http=403 | latency=109ms\nProbe succeeded, known official source",
+      "discovered_at": "2026-03-27T19:55:31.927491+00:00",
+      "last_checked_at": "2026-03-27T19:57:54.249631+00:00"
+    },
+    {
+      "source_id": "sec_edgar_xbrl_data",
+      "name": "SEC EDGAR XBRL Data",
+      "category": "fundamental",
+      "url": "https://data.sec.gov/api/xbrl",
+      "acquisition_method": "api",
+      "auth_required": false,
+      "free_tier": true,
+      "rate_limit_notes": "",
+      "update_frequency": "quarterly",
+      "asset_classes": [
+        "equity"
+      ],
+      "data_types": [
+        "fundamentals",
+        "earnings",
+        "balance_sheet",
+        "cash_flow"
+      ],
+      "reliability_score": 0.88,
+      "status": "validated",
+      "notes": "SEC EDGAR XBRL structured filings. 10-K/10-Q machine-readable. No key needed. Rate limit: 10 req/s.\n[probe 2026-03-27] | method=HEAD | status=403 | ok=True | latency=375ms | error='HTTPError 403: Forbidden'\n[sample 2026-03-27] | action=error | http=404 | latency=234ms\n[probe 2026-03-27] | method=HEAD | status=403 | ok=True | latency=219ms | error='HTTPError 403: Forbidden'\n[sample 2026-03-27] | action=error | http=404 | latency=203ms\nProbe succeeded, known official source",
+      "discovered_at": "2026-03-27T19:55:31.927491+00:00",
+      "last_checked_at": "2026-03-27T19:57:54.250630+00:00"
+    },
+    {
+      "source_id": "yahoo_finance_rss_market_summary",
+      "name": "Yahoo Finance RSS / Market Summary",
+      "category": "news",
+      "url": "https://finance.yahoo.com",
+      "acquisition_method": "feed",
+      "auth_required": false,
+      "free_tier": true,
+      "rate_limit_notes": "",
+      "update_frequency": "realtime",
+      "asset_classes": [
+        "equity",
+        "crypto",
+        "forex",
+        "commodity"
+      ],
+      "data_types": [
+        "news",
+        "sentiment"
+      ],
+      "reliability_score": 0.4575,
+      "status": "sampled",
+      "notes": "RSS feeds for market news and sentiment. Supplement to yfinance SDK.\n[probe 2026-03-27] | method=HEAD | status=200 | ok=True | latency=547ms | content_type=text/html; charset=utf-8\n[probe 2026-03-27] | method=HEAD | status=200 | ok=True | latency=453ms | content_type=text/html; charset=utf-8",
+      "discovered_at": "2026-03-27T19:55:31.927491+00:00",
+      "last_checked_at": "2026-03-27T19:55:56.213672+00:00"
+    },
+    {
+      "source_id": "cboe_volatility_index_vix_data",
+      "name": "CBOE Volatility Index (VIX) Data",
+      "category": "alternative",
+      "url": "https://www.cboe.com/tradable_products/vix/vix_historical_data",
+      "acquisition_method": "file_download",
+      "auth_required": false,
+      "free_tier": true,
+      "rate_limit_notes": "",
+      "update_frequency": "daily",
+      "asset_classes": [
+        "equity"
+      ],
+      "data_types": [
+        "volatility"
+      ],
+      "reliability_score": 0.86,
+      "status": "validated",
+      "notes": "Official CBOE VIX historical data. CSV. Widely used fear gauge.\n[probe 2026-03-27] | method=HEAD | status=200 | ok=True | latency=578ms | content_type=text/html; charset=utf-8\n[probe 2026-03-27] | method=HEAD | status=200 | ok=True | latency=172ms | content_type=text/html; charset=utf-8\nProbe succeeded, known official source",
+      "discovered_at": "2026-03-27T19:55:31.927491+00:00",
+      "last_checked_at": "2026-03-27T19:57:54.251630+00:00"
+    },
+    {
+      "source_id": "us_bls_employment_statistics",
+      "name": "US BLS Employment Statistics",
+      "category": "macro",
+      "url": "https://api.bls.gov/publicAPI/v2/timeseries/data",
+      "acquisition_method": "api",
+      "auth_required": false,
+      "free_tier": true,
+      "rate_limit_notes": "",
+      "update_frequency": "monthly",
+      "asset_classes": [
+        "macro"
+      ],
+      "data_types": [
+        "employment",
+        "wages",
+        "cpi"
+      ],
+      "reliability_score": 0.8525,
+      "status": "validated",
+      "notes": "Bureau of Labor Statistics public API. No key needed for basic access.\n[probe 2026-03-27] | method=GET | status=405 | ok=False | latency=250ms | error='HTTPError 405: 405'\n[probe 2026-03-27] | method=GET | status=405 | ok=False | latency=235ms | error='HTTPError 405: 405'\nManually advanced: known-good official API, probe returned 405 on base URL\nKnown-good: active connector exists in codebase",
+      "discovered_at": "2026-03-27T19:55:31.927491+00:00",
+      "last_checked_at": "2026-03-27T19:57:54.249631+00:00"
+    },
+    {
+      "source_id": "open_exchange_rates",
+      "name": "Open Exchange Rates",
+      "category": "forex",
+      "url": "https://openexchangerates.org/api",
+      "acquisition_method": "api",
+      "auth_required": true,
+      "free_tier": true,
+      "rate_limit_notes": "",
+      "update_frequency": "hourly",
+      "asset_classes": [
+        "forex"
+      ],
+      "data_types": [
+        "exchange_rates"
+      ],
+      "reliability_score": 0.58,
+      "status": "sampled",
+      "notes": "Free tier: 1,000 req/month, hourly updates. Requires free API key.\n[probe 2026-03-27] | method=GET | status=405 | ok=False | latency=281ms | error='HTTPError 405: Method Not Allowed'\n[probe 2026-03-27] | method=GET | status=405 | ok=False | latency=265ms | error='HTTPError 405: Method Not Allowed'\nKnown-good API, requires free key",
+      "discovered_at": "2026-03-27T19:55:31.927491+00:00",
+      "last_checked_at": "2026-03-27T19:57:54.252629+00:00"
+    }
+  ]
+}
