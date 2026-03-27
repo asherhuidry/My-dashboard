@@ -331,6 +331,270 @@ class TestBuildIntelligenceReport:
         assert "provenance" in report
 
 
+# ── Test: Anomaly detection ─────────────────────────────────────────────────
+
+def _make_metrics(**overrides: Any) -> dict[str, Any]:
+    """Build a plausible metrics dict for anomaly detection tests."""
+    base: dict[str, Any] = {
+        "exposure_asset_count": 4, "exposure_factor_count": 4,
+        "exposure_pair_count": 2,
+        "exposure_sim_mean": 0.28, "exposure_sim_max": 0.88,
+        "exposure_top_pair": "AAPL/MSFT",
+        "regime_pairs_analyzed": 3, "regime_divergence_count": 2,
+        "regime_divergence_mean": 0.30, "regime_divergence_max": 0.35,
+        "regime_amplified_pct": 0.5, "regime_top_shift": "AAPL/rate/stress",
+        "bridge_count": 2, "bridge_max_span": 3,
+        "bridge_factor_ids": ["VIXCLS", "GS10"],
+        "centrality_top_node": "VIXCLS", "centrality_top_degree": 14,
+        "centrality_mean_degree": 13.0,
+    }
+    base.update(overrides)
+    return base
+
+
+class TestDetectStructuralAnomalies:
+    """Tests for detect_structural_anomalies()."""
+
+    def test_insufficient_history_returns_early(self) -> None:
+        from data.agents.graph_intelligence import detect_structural_anomalies
+        current = _make_metrics()
+        history = [_make_metrics(), _make_metrics()]  # only 2, need 3
+        result = detect_structural_anomalies(current, history)
+        assert result["sufficient_history"] is False
+        assert result["anomalies"] == []
+        assert result["history_depth"] == 2
+
+    def test_no_anomalies_when_current_matches_history(self) -> None:
+        from data.agents.graph_intelligence import detect_structural_anomalies
+        m = _make_metrics()
+        # Small variance in history so std > 0 but current is near mean
+        history = [
+            _make_metrics(exposure_sim_mean=0.27),
+            _make_metrics(exposure_sim_mean=0.29),
+            _make_metrics(exposure_sim_mean=0.28),
+            _make_metrics(exposure_sim_mean=0.28),
+        ]
+        result = detect_structural_anomalies(m, history)
+        assert result["sufficient_history"] is True
+        assert result["metrics_checked"] > 0
+        assert len(result["anomalies"]) == 0
+
+    def test_spike_detected(self) -> None:
+        """A current value far above the rolling mean should flag as spike."""
+        from data.agents.graph_intelligence import detect_structural_anomalies
+        # History has bridge_count around 2, current jumps to 10
+        history = [
+            _make_metrics(bridge_count=2),
+            _make_metrics(bridge_count=2),
+            _make_metrics(bridge_count=3),
+            _make_metrics(bridge_count=2),
+        ]
+        current = _make_metrics(bridge_count=10)
+        result = detect_structural_anomalies(current, history)
+        bridge_anomalies = [a for a in result["anomalies"] if a["metric"] == "bridge_count"]
+        assert len(bridge_anomalies) == 1
+        assert bridge_anomalies[0]["direction"] == "spike"
+        assert bridge_anomalies[0]["z_score"] > 2.0
+
+    def test_drop_detected(self) -> None:
+        """A current value far below the rolling mean should flag as drop."""
+        from data.agents.graph_intelligence import detect_structural_anomalies
+        history = [
+            _make_metrics(centrality_mean_degree=13.0),
+            _make_metrics(centrality_mean_degree=14.0),
+            _make_metrics(centrality_mean_degree=13.5),
+            _make_metrics(centrality_mean_degree=13.0),
+        ]
+        current = _make_metrics(centrality_mean_degree=2.0)
+        result = detect_structural_anomalies(current, history)
+        deg_anomalies = [a for a in result["anomalies"] if a["metric"] == "centrality_mean_degree"]
+        assert len(deg_anomalies) == 1
+        assert deg_anomalies[0]["direction"] == "drop"
+        assert deg_anomalies[0]["z_score"] < -2.0
+
+    def test_critical_severity_at_z3(self) -> None:
+        """z >= 3.0 should be marked critical, not just warning."""
+        from data.agents.graph_intelligence import detect_structural_anomalies
+        history = [
+            _make_metrics(bridge_count=2),
+            _make_metrics(bridge_count=2),
+            _make_metrics(bridge_count=2),
+            _make_metrics(bridge_count=2),
+            _make_metrics(bridge_count=3),
+        ]
+        current = _make_metrics(bridge_count=20)  # extreme spike
+        result = detect_structural_anomalies(current, history)
+        bridge_anomalies = [a for a in result["anomalies"] if a["metric"] == "bridge_count"]
+        assert len(bridge_anomalies) == 1
+        assert bridge_anomalies[0]["severity"] == "critical"
+
+    def test_warning_severity_between_z2_and_z3(self) -> None:
+        from data.agents.graph_intelligence import detect_structural_anomalies
+        # history mean=0.28, std≈0.00816 → current=0.30 gives z≈2.45
+        history = [
+            _make_metrics(exposure_sim_mean=0.28),
+            _make_metrics(exposure_sim_mean=0.29),
+            _make_metrics(exposure_sim_mean=0.27),
+            _make_metrics(exposure_sim_mean=0.28),
+        ]
+        current = _make_metrics(exposure_sim_mean=0.30)
+        result = detect_structural_anomalies(current, history)
+        sim_anomalies = [a for a in result["anomalies"] if a["metric"] == "exposure_sim_mean"]
+        assert len(sim_anomalies) == 1
+        assert sim_anomalies[0]["severity"] == "warning"
+
+    def test_constant_history_skipped(self) -> None:
+        """If all history values are identical (std=0), skip rather than divide by zero."""
+        from data.agents.graph_intelligence import detect_structural_anomalies
+        history = [_make_metrics() for _ in range(5)]
+        # All metrics identical → std=0 for all → no anomalies
+        current = _make_metrics(bridge_count=99)
+        result = detect_structural_anomalies(current, history)
+        # bridge_count had zero variance in history, but current differs.
+        # However std=0 so it should be skipped (no divide-by-zero).
+        # Other metrics with zero variance are also skipped.
+        # The only anomalies should be from metrics where history varies.
+        assert result["sufficient_history"] is True
+        # No crash = success; constant-history metrics produce no anomalies
+
+    def test_none_values_in_history_skipped(self) -> None:
+        """Metrics with None in history should be gracefully skipped."""
+        from data.agents.graph_intelligence import detect_structural_anomalies
+        history = [
+            _make_metrics(exposure_sim_mean=None),
+            _make_metrics(exposure_sim_mean=None),
+            _make_metrics(exposure_sim_mean=0.28),
+        ]
+        current = _make_metrics(exposure_sim_mean=0.90)
+        result = detect_structural_anomalies(current, history)
+        # Only 1 non-None value for exposure_sim_mean < MIN_HISTORY — no anomaly for it
+        sim_anomalies = [a for a in result["anomalies"] if a["metric"] == "exposure_sim_mean"]
+        assert len(sim_anomalies) == 0
+
+    def test_anomalies_sorted_by_z_score_magnitude(self) -> None:
+        from data.agents.graph_intelligence import detect_structural_anomalies
+        history = [
+            _make_metrics(bridge_count=2, centrality_top_degree=14),
+            _make_metrics(bridge_count=2, centrality_top_degree=14),
+            _make_metrics(bridge_count=3, centrality_top_degree=13),
+            _make_metrics(bridge_count=2, centrality_top_degree=14),
+        ]
+        # Both spike, but bridge_count spikes harder
+        current = _make_metrics(bridge_count=20, centrality_top_degree=25)
+        result = detect_structural_anomalies(current, history)
+        if len(result["anomalies"]) >= 2:
+            z_scores = [abs(a["z_score"]) for a in result["anomalies"]]
+            assert z_scores == sorted(z_scores, reverse=True)
+
+    def test_empty_history_returns_insufficient(self) -> None:
+        from data.agents.graph_intelligence import detect_structural_anomalies
+        result = detect_structural_anomalies(_make_metrics(), [])
+        assert result["sufficient_history"] is False
+        assert result["history_depth"] == 0
+
+    def test_anomaly_fields_present(self) -> None:
+        """Each anomaly should contain all expected fields."""
+        from data.agents.graph_intelligence import detect_structural_anomalies
+        history = [
+            _make_metrics(bridge_count=2),
+            _make_metrics(bridge_count=2),
+            _make_metrics(bridge_count=3),
+        ]
+        current = _make_metrics(bridge_count=15)
+        result = detect_structural_anomalies(current, history)
+        assert len(result["anomalies"]) >= 1
+        a = result["anomalies"][0]
+        for field in ("metric", "label", "current_value", "rolling_mean",
+                      "rolling_std", "z_score", "direction", "severity"):
+            assert field in a, f"Missing field: {field}"
+
+
+class TestAnomalyInsightIntegration:
+    """Tests that anomaly results flow into rank_insights and the report."""
+
+    def test_anomaly_insights_generated(self) -> None:
+        from data.agents.graph_intelligence import rank_insights
+        metrics = _make_metrics()
+        anomaly_result = {
+            "anomalies": [{
+                "metric": "bridge_count",
+                "label": "cross-class bridge count",
+                "current_value": 10,
+                "rolling_mean": 2.25,
+                "rolling_std": 0.5,
+                "z_score": 15.5,
+                "direction": "spike",
+                "severity": "critical",
+            }],
+            "metrics_checked": 9,
+            "history_depth": 4,
+            "sufficient_history": True,
+        }
+        empty_analysis = {
+            "exposure_profiles": {"similar_pairs": [], "asset_count": 0, "factor_count": 0},
+            "regime_divergence": {"divergences": [], "pairs_analyzed": 0},
+            "bridge_factors": {"bridges": [], "total_factors": 0, "bridge_count": 0},
+            "centrality": {"ranking": [], "total_ranked": 0},
+        }
+        insights = rank_insights(empty_analysis, metrics, anomalies=anomaly_result)
+        anomaly_insights = [i for i in insights if i["type"] == "structural_anomaly"]
+        assert len(anomaly_insights) == 1
+        assert anomaly_insights[0]["priority"] == 1  # critical → priority 1
+        assert "ANOMALY" in anomaly_insights[0]["title"]
+
+    def test_warning_anomaly_gets_priority_2(self) -> None:
+        from data.agents.graph_intelligence import rank_insights
+        anomaly_result = {
+            "anomalies": [{
+                "metric": "bridge_count",
+                "label": "cross-class bridge count",
+                "current_value": 4,
+                "rolling_mean": 2.25,
+                "rolling_std": 0.5,
+                "z_score": 2.5,
+                "direction": "spike",
+                "severity": "warning",
+            }],
+            "metrics_checked": 9,
+            "history_depth": 4,
+            "sufficient_history": True,
+        }
+        empty_analysis = {
+            "exposure_profiles": {"similar_pairs": [], "asset_count": 0, "factor_count": 0},
+            "regime_divergence": {"divergences": [], "pairs_analyzed": 0},
+            "bridge_factors": {"bridges": [], "total_factors": 0, "bridge_count": 0},
+            "centrality": {"ranking": [], "total_ranked": 0},
+        }
+        insights = rank_insights(empty_analysis, {}, anomalies=anomaly_result)
+        anomaly_insights = [i for i in insights if i["type"] == "structural_anomaly"]
+        assert anomaly_insights[0]["priority"] == 2
+
+    @patch("db.supabase.client.get_structural_snapshots")
+    @patch("data.agents.graph_analyzer.analyze_graph_structure", return_value=_ANALYSIS_V2)
+    def test_report_includes_anomalies_section(self, mock_analyze, mock_prev) -> None:
+        from data.agents.graph_analyzer import compute_summary_metrics
+        from data.agents.graph_intelligence import build_intelligence_report
+        prev_metrics = compute_summary_metrics(_ANALYSIS_V1)
+        # Provide 4 snapshots so anomaly detection runs (>= MIN_HISTORY)
+        snapshots = [
+            {"after_state": {"metrics": prev_metrics, "analysis": _ANALYSIS_V1},
+             "created_at": f"2026-03-{20-i}T08:00:00Z"}
+            for i in range(4)
+        ]
+        mock_prev.return_value = snapshots
+        report = build_intelligence_report()
+        assert "anomalies" in report
+        assert "sufficient_history" in report["anomalies"]
+        assert report["anomalies"]["history_depth"] == 4
+
+    @patch("db.supabase.client.get_structural_snapshots", return_value=[])
+    @patch("data.agents.graph_analyzer.analyze_graph_structure", return_value=_ANALYSIS_V1)
+    def test_report_no_anomalies_on_first_run(self, mock_analyze, mock_prev) -> None:
+        from data.agents.graph_intelligence import build_intelligence_report
+        report = build_intelligence_report()
+        assert "anomalies" not in report
+
+
 # ── Test: API endpoint ───────────────────────────────────────────────────────
 
 class TestGraphIntelligenceAPI:

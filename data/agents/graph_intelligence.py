@@ -1,6 +1,6 @@
 """Graph intelligence layer — integrates analysis, provenance, diffs, and insights.
 
-Sits above graph_analyzer and combines four capabilities into a single
+Sits above graph_analyzer and combines five capabilities into a single
 coherent intelligence report:
 
 1. **Run diff** — what changed in the graph since the last snapshot
@@ -9,11 +9,15 @@ coherent intelligence report:
 3. **Provenance** — which data source feeds each series in the graph
 4. **Ranked insights** — the most important structural findings right
    now, prioritised by actionability
+5. **Anomaly detection** — z-score based early warnings when structural
+   metrics deviate significantly from their rolling history
 """
 from __future__ import annotations
 
 import logging
 from typing import Any
+
+import numpy as np
 
 log = logging.getLogger(__name__)
 
@@ -216,13 +220,129 @@ def compute_edge_changes(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 3. Insight ranking
+# 3. Anomaly detection over structural metric time series
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Metrics worth monitoring for structural anomalies — these capture the
+# highest-signal dimensions of market structure change.
+_MONITORED_METRICS: list[str] = [
+    "exposure_sim_mean",
+    "exposure_sim_max",
+    "regime_divergence_mean",
+    "regime_divergence_max",
+    "regime_amplified_pct",
+    "bridge_count",
+    "bridge_max_span",
+    "centrality_top_degree",
+    "centrality_mean_degree",
+]
+
+# Human-readable descriptions for anomaly reports
+_METRIC_LABELS: dict[str, str] = {
+    "exposure_sim_mean":       "mean exposure similarity",
+    "exposure_sim_max":        "max exposure similarity",
+    "regime_divergence_mean":  "mean regime divergence",
+    "regime_divergence_max":   "max regime divergence",
+    "regime_amplified_pct":    "% of regime-amplified pairs",
+    "bridge_count":            "cross-class bridge count",
+    "bridge_max_span":         "max bridge asset-class span",
+    "centrality_top_degree":   "top node degree centrality",
+    "centrality_mean_degree":  "mean degree centrality",
+}
+
+# z-score threshold for flagging an anomaly
+_Z_THRESHOLD: float = 2.0
+
+# Minimum number of historical snapshots required for meaningful z-scores
+_MIN_HISTORY: int = 3
+
+
+def detect_structural_anomalies(
+    current_metrics: dict[str, Any],
+    history: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Detect anomalies in structural metrics using z-scores.
+
+    Compares each monitored metric in the current snapshot against its
+    rolling history.  When |z-score| >= 2.0, the metric is flagged as
+    anomalous with direction (spike / drop) and magnitude.
+
+    Args:
+        current_metrics: Summary metrics from compute_summary_metrics().
+        history: List of previous snapshot metric dicts, most-recent first.
+                 Each entry is the ``metrics`` sub-dict from a snapshot's
+                 ``after_state``.
+
+    Returns:
+        Dict with:
+        - ``anomalies``: list of anomaly findings
+        - ``metrics_checked``: how many metrics were evaluated
+        - ``history_depth``: how many snapshots were used
+        - ``sufficient_history``: whether enough data existed
+    """
+    result: dict[str, Any] = {
+        "anomalies": [],
+        "metrics_checked": 0,
+        "history_depth": len(history),
+        "sufficient_history": len(history) >= _MIN_HISTORY,
+    }
+
+    if len(history) < _MIN_HISTORY:
+        return result
+
+    anomalies: list[dict[str, Any]] = []
+
+    for metric_key in _MONITORED_METRICS:
+        current_val = current_metrics.get(metric_key)
+        if current_val is None:
+            continue
+
+        # Build history array, skipping None values
+        hist_vals = [
+            h[metric_key] for h in history
+            if h.get(metric_key) is not None
+        ]
+        if len(hist_vals) < _MIN_HISTORY:
+            continue
+
+        result["metrics_checked"] += 1
+
+        arr = np.array(hist_vals, dtype=float)
+        mean = float(np.mean(arr))
+        std = float(np.std(arr, ddof=1))
+
+        if std < 1e-12:
+            # No variance in history — skip (constant metric is not anomalous)
+            continue
+
+        z = (float(current_val) - mean) / std
+
+        if abs(z) >= _Z_THRESHOLD:
+            anomalies.append({
+                "metric": metric_key,
+                "label": _METRIC_LABELS.get(metric_key, metric_key),
+                "current_value": round(float(current_val), 6),
+                "rolling_mean": round(mean, 6),
+                "rolling_std": round(std, 6),
+                "z_score": round(z, 3),
+                "direction": "spike" if z > 0 else "drop",
+                "severity": "critical" if abs(z) >= 3.0 else "warning",
+            })
+
+    anomalies.sort(key=lambda a: abs(a["z_score"]), reverse=True)
+    result["anomalies"] = anomalies
+    return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. Insight ranking
 # ─────────────────────────────────────────────────────────────────────────────
 
 def rank_insights(
     analysis: dict[str, Any],
     metrics: dict[str, Any],
     edge_changes: dict[str, Any] | None = None,
+    anomalies: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Generate a prioritised list of the most important structural findings.
 
@@ -233,6 +353,8 @@ def rank_insights(
         analysis:     Output of analyze_graph_structure().
         metrics:      Summary metrics from compute_summary_metrics().
         edge_changes: Optional edge-level diff from compute_edge_changes().
+        anomalies:    Optional anomaly detection results from
+                      detect_structural_anomalies().
 
     Returns:
         List of insight dicts, sorted by priority (ascending = most important first).
@@ -324,12 +446,32 @@ def rank_insights(
                 "evidence": b,
             })
 
+    # ── Anomaly insights (if detection results available) ──────────
+    if anomalies:
+        for a in anomalies.get("anomalies", []):
+            is_critical = a["severity"] == "critical"
+            insights.append({
+                "type": "structural_anomaly",
+                "priority": 1 if is_critical else 2,
+                "title": (
+                    f"ANOMALY: {a['label']} {a['direction']} "
+                    f"(z={a['z_score']:+.1f})"
+                ),
+                "detail": (
+                    f"Current {a['current_value']:.4g} vs "
+                    f"rolling mean {a['rolling_mean']:.4g} "
+                    f"(±{a['rolling_std']:.4g}), "
+                    f"severity: {a['severity']}"
+                ),
+                "evidence": a,
+            })
+
     insights.sort(key=lambda i: i["priority"])
     return insights
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4. Combined intelligence report
+# 5. Combined intelligence report
 # ─────────────────────────────────────────────────────────────────────────────
 
 def build_intelligence_report(run_id: str | None = None) -> dict[str, Any]:
@@ -359,23 +501,36 @@ def build_intelligence_report(run_id: str | None = None) -> dict[str, Any]:
     analysis = analyze_graph_structure()
     metrics = compute_summary_metrics(analysis)
 
-    # 2. Previous snapshot + diffs
+    # 2. Previous snapshots → diffs + anomaly detection
     diff: dict[str, Any] | None = None
     edge_changes: dict[str, Any] | None = None
+    anomaly_result: dict[str, Any] | None = None
     previous_timestamp: str | None = None
 
     try:
         from db.supabase.client import get_structural_snapshots
-        prev = get_structural_snapshots(limit=1)
-        if prev:
-            prev_state = prev[0].get("after_state", {})
+        snapshots = get_structural_snapshots(limit=20)
+        if snapshots:
+            # Most recent snapshot for edge-level diff
+            prev_state = snapshots[0].get("after_state", {})
             prev_metrics = prev_state.get("metrics", {})
             prev_analysis = prev_state.get("analysis", {})
             if prev_metrics:
                 diff = compute_snapshot_diff(metrics, prev_metrics)
             if prev_analysis:
                 edge_changes = compute_edge_changes(analysis, prev_analysis)
-            previous_timestamp = prev[0].get("created_at")
+            previous_timestamp = snapshots[0].get("created_at")
+
+            # Rolling history for anomaly detection
+            history_metrics = [
+                s.get("after_state", {}).get("metrics", {})
+                for s in snapshots
+                if s.get("after_state", {}).get("metrics")
+            ]
+            if history_metrics:
+                anomaly_result = detect_structural_anomalies(
+                    metrics, history_metrics,
+                )
     except Exception as exc:
         log.warning("Could not fetch previous snapshot: %s", exc)
 
@@ -395,8 +550,8 @@ def build_intelligence_report(run_id: str | None = None) -> dict[str, Any]:
 
     provenance = {s: resolve_series_source(s) for s in sorted(all_series) if s}
 
-    # 4. Ranked insights
-    insights = rank_insights(analysis, metrics, edge_changes)
+    # 4. Ranked insights (including anomalies when available)
+    insights = rank_insights(analysis, metrics, edge_changes, anomaly_result)
 
     report: dict[str, Any] = {
         "run_id": run_id,
@@ -410,9 +565,13 @@ def build_intelligence_report(run_id: str | None = None) -> dict[str, Any]:
         report["metric_diff"] = diff
     if edge_changes:
         report["edge_changes"] = edge_changes
+    if anomaly_result:
+        report["anomalies"] = anomaly_result
 
+    anomaly_count = len(anomaly_result["anomalies"]) if anomaly_result else 0
     log.info(
-        "Intelligence report: %d insights, %d series tracked, diff=%s",
-        len(insights), len(provenance), "yes" if diff else "first run",
+        "Intelligence report: %d insights, %d anomalies, %d series tracked, diff=%s",
+        len(insights), anomaly_count, len(provenance),
+        "yes" if diff else "first run",
     )
     return report
