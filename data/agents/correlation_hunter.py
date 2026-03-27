@@ -480,11 +480,16 @@ def find_leading_indicators(
 
 
 def run(symbols: list[str] | None = None) -> list[CorrelationFinding]:
-    """Run full correlation discovery on the FinBrain universe.
+    """Run full discovery pipeline on the FinBrain universe.
 
-    This is the main entrypoint called by GitHub Actions on a weekly schedule.
-    After discovering and persisting correlations, automatically materializes
-    the full market graph in Neo4j so the graph compounds by default.
+    Runs two complementary discovery passes:
+    1. Correlation hunting — pairwise Pearson, Granger, MI across all series
+    2. Sensitivity analysis — OLS factor exposure (beta) for each asset against
+       8 macro factors (rates, inflation, dollar, oil, volatility, credit,
+       liquidity, financial stress)
+
+    After discovering and persisting, automatically materializes the full
+    market graph in Neo4j so the graph compounds by default.
 
     Args:
         symbols: Optional symbol list override. Defaults to the full universe.
@@ -497,16 +502,22 @@ def run(symbols: list[str] | None = None) -> list[CorrelationFinding]:
     if symbols is None:
         symbols = get_all_symbols()
 
+    price_syms = symbols[:60]
     macro_ids = [s[0] for s in MACRO_SERIES if s[2] == "daily"][:20]
 
+    # ── Pass 1: Correlation discovery ──────────────────────────────────
     findings = hunt_correlations(
-        price_symbols = symbols[:60],  # top 60 assets
+        price_symbols = price_syms,
         macro_series  = macro_ids,
         test_granger  = True,
         max_pairs     = 1000,
     )
 
-    # Persist discoveries to queryable store
+    # ── Pass 2: Factor sensitivity discovery ───────────────────────────
+    sensitivity_findings = _run_sensitivity_pass(price_syms, macro_ids)
+    findings.extend(sensitivity_findings)
+
+    # Persist all discoveries (correlations + sensitivities) to queryable store
     run_id = _persist_discoveries(findings)
 
     # Materialize the full graph in Neo4j after successful persistence.
@@ -517,8 +528,12 @@ def run(symbols: list[str] | None = None) -> list[CorrelationFinding]:
     # Log summary to evolution audit trail
     try:
         from db.supabase.client import log_evolution, EvolutionLogEntry
+        n_sensitivity = len(sensitivity_findings)
+        n_correlation = len(findings) - n_sensitivity
         after_state: dict = {
             "findings":      len(findings),
+            "correlations":  n_correlation,
+            "sensitivities": n_sensitivity,
             "strong":        sum(1 for f in findings if f.strength == "strong"),
             "with_granger":  sum(1 for f in findings if f.granger_p and f.granger_p < 0.05),
             "run_id":        run_id,
@@ -533,6 +548,68 @@ def run(symbols: list[str] | None = None) -> list[CorrelationFinding]:
     except Exception:
         pass
 
+    return findings
+
+
+def _run_sensitivity_pass(
+    price_symbols: list[str],
+    macro_ids: list[str],
+) -> list[CorrelationFinding]:
+    """Run factor sensitivity analysis and convert results to CorrelationFindings.
+
+    Fetches asset returns and macro data, then computes OLS betas for each
+    asset against each sensitivity factor. Results are stored as
+    CorrelationFindings with relationship_type like 'rate_sensitive'.
+
+    The beta coefficient is stored in the mutual_info field (repurposed)
+    so it persists through the existing Supabase schema without migration.
+
+    Args:
+        price_symbols: Asset tickers to analyze.
+        macro_ids:     FRED series IDs (superset — only sensitivity factors used).
+
+    Returns:
+        List of CorrelationFindings for significant factor exposures.
+    """
+    try:
+        from data.agents.sensitivity_analyzer import (
+            compute_factor_sensitivities, SENSITIVITY_FACTORS,
+        )
+    except ImportError as exc:
+        log.warning("Sensitivity analyzer not available: %s", exc)
+        return []
+
+    # Fetch the same data the correlation hunter uses
+    log.info("Running factor sensitivity analysis...")
+    price_df = _fetch_returns(price_symbols[:50])
+
+    # Ensure all sensitivity factor series are included in macro fetch
+    factor_ids = [fid for fid, _ in SENSITIVITY_FACTORS.values()]
+    all_macro = list(set(macro_ids) | set(factor_ids))
+    macro_df = _fetch_macro_levels(all_macro)
+
+    if price_df.empty or macro_df.empty:
+        log.warning("Insufficient data for sensitivity analysis")
+        return []
+
+    raw_results = compute_factor_sensitivities(price_df, macro_df)
+
+    # Convert sensitivity dicts to CorrelationFindings for unified persistence.
+    # Beta is stored in mutual_info to fit the existing Supabase schema.
+    findings = []
+    for r in raw_results:
+        findings.append(CorrelationFinding(
+            series_a          = r["series_a"],
+            series_b          = r["series_b"],
+            lag_days          = r["lag_days"],
+            pearson_r         = r["pearson_r"],
+            granger_p         = r.get("p_value"),
+            mutual_info       = r["beta"],       # beta stored in mutual_info
+            strength          = r["strength"],
+            relationship_type = r["relationship_type"],
+        ))
+
+    log.info("Sensitivity pass: %d significant factor exposures found", len(findings))
     return findings
 
 

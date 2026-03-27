@@ -28,6 +28,10 @@ AGENT_ID = "graph_materializer"
 # in addition to the undirected CORRELATED_WITH edge.
 GRANGER_CAUSAL_THRESHOLD = 0.05
 
+# relationship_type values that denote factor sensitivity discoveries.
+# These get SENSITIVE_TO edges instead of CORRELATED_WITH.
+SENSITIVITY_SUFFIX = "_sensitive"
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Series classification
@@ -125,9 +129,13 @@ def _build_edge(row: dict[str, Any],
                 macro_lookup: dict[str, tuple[str, str]]) -> list[dict[str, Any]]:
     """Build edge dicts from a single discovery row.
 
-    May return 1 or 2 edges:
-    - Always: CORRELATED_WITH (undirected, canonical order)
-    - Optionally: CAUSES (directed, if Granger p < threshold)
+    For correlation discoveries, may return 1-2 edges:
+    - CORRELATED_WITH (undirected, canonical order)
+    - CAUSES (directed, if Granger p < threshold)
+
+    For sensitivity discoveries (relationship_type ends with '_sensitive'),
+    returns exactly 1 directed SENSITIVE_TO edge:
+    - Asset -[SENSITIVE_TO]-> MacroIndicator
 
     Args:
         row: A discovery row from Supabase.
@@ -137,6 +145,13 @@ def _build_edge(row: dict[str, Any],
     Returns:
         List of edge dicts ready for batch_merge_edges.
     """
+    rel_type_raw = row.get("relationship_type", "discovered")
+
+    # ── Sensitivity edges ──────────────────────────────────────────────
+    if rel_type_raw.endswith(SENSITIVITY_SUFFIX):
+        return _build_sensitivity_edge(row, asset_lookup, macro_lookup)
+
+    # ── Correlation edges (existing logic) ─────────────────────────────
     series_a = row["series_a"]
     series_b = row["series_b"]
     label_a = classify_series(series_a, asset_lookup, macro_lookup)
@@ -155,6 +170,8 @@ def _build_edge(row: dict[str, Any],
         "strength": row.get("strength", "weak"),
         "regime": row.get("regime", "all"),
         "relationship_type": row.get("relationship_type", "discovered"),
+        "factor_group": None,
+        "beta": None,
     }
 
     edges = []
@@ -170,10 +187,8 @@ def _build_edge(row: dict[str, Any],
     })
 
     # 2. If Granger-causal, also create directed CAUSES edge
-    #    Direction: series_a → series_b (as stored in discovery)
     granger_p = row.get("granger_p")
     if granger_p is not None and granger_p < GRANGER_CAUSAL_THRESHOLD:
-        # Use original order (before canonical reordering) for CAUSES directionality
         orig_a = row["series_a"]
         orig_b = row["series_b"]
         orig_label_a = classify_series(orig_a, asset_lookup, macro_lookup)
@@ -188,6 +203,51 @@ def _build_edge(row: dict[str, Any],
         })
 
     return edges
+
+
+def _build_sensitivity_edge(row: dict[str, Any],
+                            asset_lookup: dict[str, str],
+                            macro_lookup: dict[str, tuple[str, str]]) -> list[dict[str, Any]]:
+    """Build a directed SENSITIVE_TO edge from a sensitivity discovery.
+
+    Direction is always Asset -> MacroIndicator (asset is exposed to factor).
+    The beta coefficient (stored in mutual_info) becomes an explicit edge property.
+
+    Args:
+        row: A sensitivity discovery row from Supabase.
+        asset_lookup: {ticker: asset_class} mapping.
+        macro_lookup: {series_id: (label, frequency)} mapping.
+
+    Returns:
+        Single-element list with the SENSITIVE_TO edge dict.
+    """
+    series_a = row["series_a"]  # asset
+    series_b = row["series_b"]  # macro factor
+    label_a = classify_series(series_a, asset_lookup, macro_lookup)
+    label_b = classify_series(series_b, asset_lookup, macro_lookup)
+
+    rel_type_raw = row.get("relationship_type", "")
+    factor_group = rel_type_raw.replace(SENSITIVITY_SUFFIX, "")
+
+    # Beta is stored in mutual_info field for sensitivity discoveries
+    beta = row.get("mutual_info")
+
+    return [{
+        "source_id": series_a,
+        "source_label": label_a,
+        "target_id": series_b,
+        "target_label": label_b,
+        "rel_type": "SENSITIVE_TO",
+        "pearson_r": row.get("pearson_r", 0),
+        "lag_days": row.get("lag_days", 0),
+        "granger_p": row.get("granger_p"),
+        "mutual_info": row.get("mutual_info"),
+        "strength": row.get("strength", "weak"),
+        "regime": row.get("regime", "all"),
+        "relationship_type": rel_type_raw,
+        "factor_group": factor_group,
+        "beta": beta,
+    }]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -287,7 +347,9 @@ def materialize(
 
     correlated = sum(1 for e in all_edges if e["rel_type"] == "CORRELATED_WITH")
     causal = sum(1 for e in all_edges if e["rel_type"] == "CAUSES")
-    log.info("Edges merged: %d CORRELATED_WITH, %d CAUSES (%d total)", correlated, causal, n_edges)
+    sensitive = sum(1 for e in all_edges if e["rel_type"] == "SENSITIVE_TO")
+    log.info("Edges merged: %d CORRELATED_WITH, %d CAUSES, %d SENSITIVE_TO (%d total)",
+             correlated, causal, sensitive, n_edges)
 
     # ── Step 6: Final stats ───────────────────────────────────────────────
     stats = get_graph_stats()
@@ -301,6 +363,7 @@ def materialize(
         "edges_merged": n_edges,
         "correlated_with_edges": correlated,
         "causes_edges": causal,
+        "sensitive_to_edges": sensitive,
         "graph_stats": stats,
     }
 

@@ -521,6 +521,8 @@ def batch_merge_edges(edges: list[dict[str, Any]]) -> int:
                     r.strength          = e.strength,
                     r.regime            = e.regime,
                     r.relationship_type = e.relationship_type,
+                    r.factor_group      = e.factor_group,
+                    r.beta              = e.beta,
                     r.updated_at        = datetime()
             """
             s.run(cypher, edges=batch)
