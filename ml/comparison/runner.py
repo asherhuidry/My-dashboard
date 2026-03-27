@@ -14,10 +14,22 @@ Models that fail (e.g., LSTM skipped due to insufficient sequences) are
 logged as warnings and the comparison continues.  A partial comparison
 (baseline + MLP) is still a useful result.
 
+Two evaluation modes
+--------------------
+single-split (default):
+    One train/val/test split (70/15/15).  Fast and deterministic.
+    Returns a ``ComparisonResult``.
+
+walk-forward:
+    Multiple chronological folds.  More evidence of generalisation.
+    Returns a ``WalkForwardComparisonResult``.
+
 Usage::
 
     from ml.comparison.runner import run_comparison
+    from ml.validation.walk_forward import WalkForwardConfig
 
+    # Single-split (existing behaviour)
     result = run_comparison(
         symbol         = "AAPL",
         df             = ohlcv_df,
@@ -28,7 +40,19 @@ Usage::
         patience       = 5,
     )
     result.print_summary()
-    print("Winner:", result.winner)
+
+    # Walk-forward mode
+    wf_result = run_comparison(
+        symbol       = "AAPL",
+        df           = ohlcv_df,
+        models       = ("baseline", "mlp"),
+        registry     = reg,
+        walk_forward = True,
+        wf_config    = WalkForwardConfig(n_folds=5),
+        epochs       = 20,
+        patience     = 5,
+    )
+    wf_result.print_summary()
 """
 from __future__ import annotations
 
@@ -48,6 +72,10 @@ from ml.registry.experiment_registry import ExperimentRegistry
 log = logging.getLogger(__name__)
 
 SUPPORTED_MODELS = ("baseline", "mlp", "lstm")
+
+# Lazily imported to avoid circular imports and keep baseline runner fast
+_WalkForwardConfig    = None  # ml.validation.walk_forward.WalkForwardConfig
+_WalkForwardResult    = None  # ml.validation.wf_runner.WalkForwardResult
 
 
 # ── Result dataclasses ────────────────────────────────────────────────────────
@@ -170,6 +198,96 @@ class ComparisonResult:
         print(sep)
 
 
+# ── Walk-forward comparison result ────────────────────────────────────────────
+
+@dataclass
+class WalkForwardComparisonResult:
+    """Ranked output of a walk-forward multi-model comparison.
+
+    Replaces ``ComparisonResult`` when ``run_comparison(walk_forward=True)``
+    is used.  Contains per-model aggregates and variance-aware promotion
+    recommendations instead of single-split metrics.
+
+    Attributes:
+        symbol:      Ticker symbol.
+        wf_config:   ``WalkForwardConfig`` used for this run.
+        aggregates:  Per-model ``FoldAggregate`` keyed by model type.
+        promotions:  Per-model ``WalkForwardPromotion`` keyed by model type.
+        winner:      Model type with the highest ``mean_composite_score``.
+                     ``None`` if no models completed.
+        generated_at: ISO-8601 timestamp.
+    """
+    symbol:       str
+    wf_config:    Any   # WalkForwardConfig (typed Any to avoid import cycle)
+    aggregates:   dict[str, Any]  # dict[str, FoldAggregate]
+    promotions:   dict[str, Any]  # dict[str, WalkForwardPromotion]
+    winner:       str | None
+    generated_at: str = field(
+        default_factory=lambda: datetime.now(tz=timezone.utc).isoformat()
+    )
+
+    def ranked(self) -> list[tuple[str, Any]]:
+        """Return ``(model_type, FoldAggregate)`` pairs sorted best-first.
+
+        Ranking uses ``mean_composite_score`` descending.
+        """
+        return sorted(
+            self.aggregates.items(),
+            key=lambda kv: kv[1].mean_composite_score,
+            reverse=True,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialise to a JSON-compatible dict."""
+        return {
+            "symbol":       self.symbol,
+            "wf_config":    self.wf_config.to_dict(),
+            "winner":       self.winner,
+            "generated_at": self.generated_at,
+            "aggregates":   {k: v.to_dict(include_fold_results=False)
+                             for k, v in self.aggregates.items()},
+            "promotions":   {k: v.to_dict() for k, v in self.promotions.items()},
+        }
+
+    def print_summary(self) -> None:
+        """Print a human-readable walk-forward comparison summary."""
+        sep = "═" * 72
+        print(sep)
+        print(
+            f"  Walk-Forward Comparison  ·  {self.symbol}  ·  "
+            f"{self.generated_at[:19].replace('T', ' ')} UTC"
+        )
+        cfg = self.wf_config
+        print(
+            f"  Folds: {cfg.n_folds}  window={cfg.window}  "
+            f"min_train={cfg.min_train_size}  val_frac={cfg.val_frac}"
+        )
+        print(f"  Winner: {self.winner or '(none)'}")
+        print(sep)
+        for model_type, agg in self.ranked():
+            promo = self.promotions.get(model_type)
+            promo_str = (
+                "✓ RECOMMENDED" if (promo and promo.overall_recommended)
+                else "✗ not recommended"
+            )
+            print(
+                f"  {model_type:10s}  "
+                f"score={agg.mean_composite_score:.4f}±{agg.std_composite_score:.4f}"
+                f"  {promo_str}"
+            )
+            print(
+                f"    acc={agg.mean_accuracy:.3f}±{agg.std_accuracy:.3f}  "
+                f"auc={agg.mean_auc:.3f}±{agg.std_auc:.3f}  "
+                f"hit={agg.mean_hit_rate:.3f}±{agg.std_hit_rate:.3f}  "
+                f"sharpe={agg.mean_sharpe:.2f}±{agg.std_sharpe:.2f}"
+            )
+            print(
+                f"    beat_bm={agg.n_folds_beat_benchmark}/{agg.n_folds}  "
+                f"fold_promo={agg.n_folds_promo_recommended}/{agg.n_folds}"
+            )
+        print(sep)
+
+
 # ── Runner ────────────────────────────────────────────────────────────────────
 
 def run_comparison(
@@ -183,7 +301,9 @@ def run_comparison(
     tags:           list[str] | None            = None,
     period:         str                         = "3y",
     target_horizon: int                         = 1,
-) -> ComparisonResult:
+    walk_forward:   bool                        = False,
+    wf_config:      Any                         = None,
+) -> "ComparisonResult | WalkForwardComparisonResult":
     """Evaluate multiple models on the same dataset version.
 
     Assembles the shared flat dataset once, then runs each requested model
@@ -209,14 +329,36 @@ def run_comparison(
         tags:           Registry tags applied to every experiment in this run.
         period:         yfinance period string (ignored when ``df`` is given).
         target_horizon: Bars ahead to predict.
+        walk_forward:   When ``True``, run walk-forward cross-validation
+                        instead of a single train/val/test split and return a
+                        ``WalkForwardComparisonResult``.
+        wf_config:      ``WalkForwardConfig`` for the walk-forward path.
+                        Defaults are used if ``None`` and ``walk_forward=True``.
 
     Returns:
-        ``ComparisonResult`` with ranked ``ModelResult`` list and a winner.
+        ``ComparisonResult`` (single-split) or ``WalkForwardComparisonResult``
+        (walk-forward).
 
     Raises:
         RuntimeError: If every requested model fails.
     """
     reg = registry if registry is not None else ExperimentRegistry()
+
+    # ── Walk-forward mode: delegate to wf_runner ──────────────────────────
+    if walk_forward:
+        return _run_comparison_walk_forward(
+            symbol         = symbol,
+            df             = df,
+            models         = list(models),
+            registry       = reg,
+            checkpoint_dir = checkpoint_dir,
+            epochs         = epochs,
+            patience       = patience,
+            tags           = tags,
+            period         = period,
+            target_horizon = target_horizon,
+            wf_config      = wf_config,
+        )
 
     # ── 1. Assemble the shared flat dataset ───────────────────────────────
     if df is None:
@@ -355,6 +497,86 @@ def _run_model(
         )
 
     raise ValueError(f"Unknown model key: {model_key!r}")
+
+
+def _run_comparison_walk_forward(
+    symbol:         str,
+    df:             pd.DataFrame | None,
+    models:         list[str],
+    registry:       ExperimentRegistry,
+    checkpoint_dir: Path | None,
+    epochs:         int,
+    patience:       int,
+    tags:           list[str] | None,
+    period:         str,
+    target_horizon: int,
+    wf_config:      Any,
+) -> WalkForwardComparisonResult:
+    """Internal implementation for walk-forward comparison mode.
+
+    Calls ``run_walk_forward`` from ``ml.validation.wf_runner`` and
+    wraps the results in a ``WalkForwardComparisonResult``.
+    """
+    from ml.validation.walk_forward import WalkForwardConfig
+    from ml.validation.wf_aggregation import (
+        FoldAggregate,
+        WalkForwardPromotion,
+        aggregate_folds,
+        wf_promotion_recommend,
+    )
+    from ml.validation.wf_runner import run_walk_forward
+
+    cfg = wf_config if wf_config is not None else WalkForwardConfig()
+
+    if df is None:
+        df = fetch_price_df(symbol, period=period)
+
+    wf_results = run_walk_forward(
+        symbol         = symbol,
+        df             = df,
+        models         = models,
+        config         = cfg,
+        registry       = registry,
+        checkpoint_dir = checkpoint_dir,
+        epochs         = epochs,
+        patience       = patience,
+        tags           = tags,
+        target_horizon = target_horizon,
+    )
+
+    if not wf_results:
+        raise RuntimeError(
+            f"All walk-forward models failed for symbol={symbol!r}. "
+            "Check logs for individual failure reasons."
+        )
+
+    aggregates:  dict[str, FoldAggregate]      = {}
+    promotions:  dict[str, WalkForwardPromotion] = {}
+
+    for model_type, wf in wf_results.items():
+        if not wf.fold_results:
+            log.warning("Model %r produced no completed folds — excluded.", model_type)
+            continue
+        agg   = aggregate_folds(wf.fold_results, model_type)
+        promo = wf_promotion_recommend(agg)
+        aggregates[model_type] = agg
+        promotions[model_type] = promo
+
+    if not aggregates:
+        raise RuntimeError(
+            f"No models produced valid fold results for symbol={symbol!r}."
+        )
+
+    winner = max(aggregates, key=lambda m: aggregates[m].mean_composite_score)
+
+    return WalkForwardComparisonResult(
+        symbol       = symbol,
+        wf_config    = cfg,
+        aggregates   = aggregates,
+        promotions   = promotions,
+        winner       = winner,
+        generated_at = datetime.now(tz=timezone.utc).isoformat(),
+    )
 
 
 def _to_model_result(
