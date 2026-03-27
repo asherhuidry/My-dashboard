@@ -1,38 +1,12 @@
 import { NavLink } from 'react-router-dom'
-import {
-  LayoutDashboard, LineChart, Database, Activity, Network,
-  Brain, SlidersHorizontal, Cpu, FlaskConical, Search, Compass, Globe,
-} from 'lucide-react'
+import { LayoutDashboard, Network, Compass, Globe, Brain } from 'lucide-react'
 
-// ── Market Graph core ─────────────────────────────────────────────
-const graphNav = [
-  { to:'/',              icon: LayoutDashboard,  label: 'Overview',       desc: 'System health'     },
-  { to:'/sources',       icon: Globe,            label: 'Sources',        desc: 'Data origins'      },
-  { to:'/discoveries',   icon: Compass,          label: 'Discoveries',    desc: 'Edges · correlations' },
+const nav = [
+  { to:'/',              icon: LayoutDashboard,  label: 'Overview',       desc: 'Structural state' },
   { to:'/network',       icon: Network,          label: 'Graph',          desc: 'Market structure'  },
+  { to:'/discoveries',   icon: Compass,          label: 'Discoveries',    desc: 'Edges & correlations' },
+  { to:'/sources',       icon: Globe,            label: 'Sources',        desc: 'Data origins'      },
 ]
-
-// ── Research tools ────────────────────────────────────────────────
-const toolsNav = [
-  { to:'/analyze',       icon: LineChart,         label: 'Analyzer',      desc: 'Asset deep-dive'   },
-  { to:'/research',      icon: Search,            label: 'Research',      desc: 'AI-assisted'       },
-  { to:'/screener',      icon: SlidersHorizontal, label: 'Screener',      desc: 'Asset scanner'     },
-  { to:'/backtest',      icon: FlaskConical,      label: 'Backtest',      desc: 'Signal testing'    },
-]
-
-// ── System ────────────────────────────────────────────────────────
-const systemNav = [
-  { to:'/database',      icon: Database,          label: 'Database',      desc: 'Tables · rows'     },
-  { to:'/evolution',     icon: Activity,          label: 'Activity',      desc: 'Agent log'         },
-]
-
-function NavLabel({ text }) {
-  return (
-    <div className="hidden lg:block px-3 pt-4 pb-1.5">
-      <span className="text-[9px] text-text-muted/60 uppercase tracking-[0.15em] font-semibold">{text}</span>
-    </div>
-  )
-}
 
 function NavSection({ items }) {
   return (
@@ -93,7 +67,7 @@ export default function Sidebar() {
       <div className="flex items-center gap-3 px-4 py-5 border-b border-border relative">
         <div className="relative flex-shrink-0">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent/30 to-purple/20
-            border border-accent/30 flex items-center justify-center animate-glow shadow-glow">
+            border border-accent/30 flex items-center justify-center shadow-glow">
             <Brain size={17} className="text-accent" />
           </div>
           <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-positive border-2 border-bg-secondary" />
@@ -108,25 +82,14 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 py-3 px-2 overflow-y-auto">
-        <NavSection items={graphNav} />
-        <NavLabel text="Tools" />
-        <NavSection items={toolsNav} />
-        <NavLabel text="System" />
-        <NavSection items={systemNav} />
+        <NavSection items={nav} />
       </nav>
 
-      {/* Bottom: status badge */}
+      {/* Bottom status */}
       <div className="p-3 border-t border-border hidden lg:block">
-        <div className="rounded-xl p-3 bg-gradient-to-br from-accent/6 to-purple/6 border border-accent/15">
-          <div className="flex items-center gap-2 mb-1.5">
-            <Network size={11} className="text-accent/70" />
-            <span className="text-[9px] font-semibold text-text-muted uppercase tracking-wider">Graph Engine</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-positive pulse-dot" />
-            <span className="text-[10px] text-text-secondary font-medium">Sources · Edges · Research</span>
-          </div>
-          <div className="text-[9px] text-text-muted mt-1">Nodes · Correlations · Evidence</div>
+        <div className="flex items-center gap-2 px-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-positive" />
+          <span className="text-[10px] text-text-muted">Graph Engine Active</span>
         </div>
       </div>
     </aside>

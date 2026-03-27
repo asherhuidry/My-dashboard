@@ -55,6 +55,18 @@ export default function ForceGraph({ nodes, edges, onNodeClick, title }) {
     ctx.strokeStyle = col + '99'
     ctx.lineWidth   = width
     ctx.stroke()
+
+    // Edge label when zoomed in (knowledge graph edges have a label field)
+    if (link.label && globalScale > 1.2) {
+      const mx = (link.source.x + link.target.x) / 2
+      const my = (link.source.y + link.target.y) / 2
+      const fontSize = Math.max(7 / globalScale, 2.5)
+      ctx.font = `${fontSize}px JetBrains Mono, monospace`
+      ctx.fillStyle = '#94a3b8'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(link.label, mx, my)
+    }
   }, [])
 
   useEffect(() => {
@@ -101,6 +113,7 @@ export default function ForceGraph({ nodes, edges, onNodeClick, title }) {
             </div>
           )}
           {tooltip.value != null && <div className="text-text-muted">corr: {tooltip.value}</div>}
+          {tooltip.class && <div className="text-text-muted capitalize">{tooltip.class}</div>}
         </div>
       )}
 

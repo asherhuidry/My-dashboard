@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { fetchCorrelations, fetchKnowledge } from '../lib/api'
+import { fetchCorrelations, fetchKnowledge, fetchGraphIntelligence } from '../lib/api'
 import Header from '../components/Layout/Header'
 import ForceGraph from '../components/Network/ForceGraph'
 import Spinner from '../components/UI/Spinner'
 import { motion } from 'framer-motion'
-import { GitBranch, Network as NetworkIcon, Sliders, Info } from 'lucide-react'
+import { GitBranch, Network as NetworkIcon, AlertTriangle, TrendingUp, Zap } from 'lucide-react'
 
 const TABS = [
-  { id:'corr',  label:'Correlation Network', icon: NetworkIcon },
-  { id:'know',  label:'Knowledge Graph',     icon: GitBranch },
+  { id:'graph', label:'Market Graph',  icon: GitBranch },
+  { id:'corr',  label:'Correlations',  icon: NetworkIcon },
 ]
 
 function CorrelationControls({ days, setDays, threshold, setThreshold }) {
@@ -35,11 +35,54 @@ function CorrelationControls({ days, setDays, threshold, setThreshold }) {
   )
 }
 
+const PRIORITY_STYLES = {
+  1: { border: 'border-negative/30', bg: 'bg-negative/6', icon: 'text-negative' },
+  2: { border: 'border-warning/30',  bg: 'bg-warning/6',  icon: 'text-warning' },
+  3: { border: 'border-accent/30',   bg: 'bg-accent/6',   icon: 'text-accent' },
+}
+
+function InsightIcon({ type }) {
+  if (type.includes('anomaly'))  return <AlertTriangle size={11} />
+  if (type.includes('bridge'))   return <Zap size={11} />
+  return <TrendingUp size={11} />
+}
+
+function InsightsPanel({ insights }) {
+  if (!insights?.length) return null
+  const top = insights.slice(0, 5)
+  return (
+    <div className="border-t border-border bg-bg-secondary/60 px-5 py-3">
+      <div className="text-[9px] text-text-muted uppercase tracking-wider font-semibold mb-2">Top Structural Insights</div>
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {top.map((ins, i) => {
+          const s = PRIORITY_STYLES[ins.priority] ?? PRIORITY_STYLES[3]
+          return (
+            <div key={i} className={`flex-shrink-0 rounded-lg px-3 py-2 border ${s.border} ${s.bg} max-w-[280px]`}>
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className={s.icon}><InsightIcon type={ins.type} /></span>
+                <span className="text-[10px] font-semibold text-text truncate">{ins.title}</span>
+              </div>
+              <div className="text-[9px] text-text-muted truncate">{ins.detail}</div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function Network() {
-  const [tab, setTab]           = useState('corr')
-  const [days, setDays]         = useState(63)
+  const [tab, setTab]             = useState('graph')
+  const [days, setDays]           = useState(63)
   const [threshold, setThreshold] = useState(0.3)
   const [selectedNode, setSelectedNode] = useState(null)
+
+  const { data: graphData, isLoading: graphLoading } = useQuery({
+    queryKey: ['knowledge'],
+    queryFn:  fetchKnowledge,
+    staleTime: 600_000,
+    enabled:   tab === 'graph',
+  })
 
   const { data: corrData, isLoading: corrLoading } = useQuery({
     queryKey: ['correlations', days, threshold],
@@ -48,26 +91,26 @@ export default function Network() {
     enabled:   tab === 'corr',
   })
 
-  const { data: knowData, isLoading: knowLoading } = useQuery({
-    queryKey: ['knowledge'],
-    queryFn:  fetchKnowledge,
+  const { data: intelligence } = useQuery({
+    queryKey: ['graph-intelligence'],
+    queryFn:  fetchGraphIntelligence,
     staleTime: 600_000,
-    enabled:   tab === 'know',
   })
 
-  const loading = tab === 'corr' ? corrLoading : knowLoading
-  const graphData = tab === 'corr' ? corrData : knowData
+  const loading = tab === 'graph' ? graphLoading : corrLoading
+  const data    = tab === 'graph' ? graphData : corrData
+  const isEmpty = data && data.nodes?.length === 0
 
   return (
     <div className="flex flex-col h-full">
-      <Header title="Network" subtitle="Asset correlations · Knowledge graph · Data relationships" />
+      <Header title="Market Graph" subtitle="Live market structure from Neo4j" />
       <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* Tab bar + controls */}
-        <div className="px-6 py-3 border-b border-border bg-bg-secondary/50 flex items-center gap-6 flex-wrap">
+        <div className="px-5 py-2.5 border-b border-border bg-bg-secondary/50 flex items-center gap-5 flex-wrap">
           <div className="flex items-center gap-1">
             {TABS.map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)}
+              <button key={t.id} onClick={() => { setTab(t.id); setSelectedNode(null) }}
                 className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all ${tab===t.id?'border-accent/40 bg-accent/10 text-accent':'border-border text-text-muted hover:text-text'}`}>
                 <t.icon size={11} /> {t.label}
               </button>
@@ -76,6 +119,15 @@ export default function Network() {
           {tab === 'corr' && (
             <CorrelationControls days={days} setDays={setDays} threshold={threshold} setThreshold={setThreshold} />
           )}
+          {tab === 'graph' && data?.source && (
+            <span className={`text-[10px] px-2 py-0.5 rounded border ${
+              data.source === 'neo4j'
+                ? 'border-positive/30 text-positive bg-positive/8'
+                : 'border-text-muted/30 text-text-muted bg-bg-hover'
+            }`}>
+              {data.source === 'neo4j' ? 'Live from Neo4j' : 'Neo4j unavailable'}
+            </span>
+          )}
         </div>
 
         {/* Graph area */}
@@ -83,29 +135,33 @@ export default function Network() {
           <div className="flex-1 relative">
             {loading ? (
               <div className="flex items-center justify-center h-full">
-                <Spinner size="lg" text="Building network graph…" />
+                <Spinner size="lg" text="Loading graph..." />
               </div>
-            ) : graphData ? (
+            ) : isEmpty ? (
+              <div className="flex flex-col items-center justify-center h-full text-text-muted gap-3">
+                <GitBranch size={32} className="text-text-muted/40" />
+                <div className="text-sm">No graph data available</div>
+                <div className="text-xs text-text-muted/60 max-w-sm text-center">
+                  {tab === 'graph'
+                    ? 'Neo4j is not connected or the graph has not been materialized yet. Run the discovery pipeline to populate the market graph.'
+                    : 'Could not fetch correlation data.'}
+                </div>
+              </div>
+            ) : data ? (
               <ForceGraph
-                nodes={graphData.nodes}
-                edges={graphData.edges}
+                nodes={data.nodes}
+                edges={data.edges}
                 onNodeClick={setSelectedNode}
               />
-            ) : (
-              <div className="flex items-center justify-center h-full text-text-muted text-sm">No data</div>
-            )}
+            ) : null}
 
             {/* Stats overlay */}
-            {graphData && !loading && (
+            {data && !loading && !isEmpty && (
               <div className="absolute top-4 left-4 glass rounded-lg px-3 py-2 text-xs space-y-0.5">
-                <div className="text-text-muted uppercase tracking-wider text-[9px] mb-1">Graph Stats</div>
-                <div className="flex items-center gap-1.5"><span className="text-text-secondary">Nodes:</span><span className="ticker-value text-text">{graphData.nodes?.length}</span></div>
-                <div className="flex items-center gap-1.5"><span className="text-text-secondary">Edges:</span><span className="ticker-value text-text">{graphData.edges?.length}</span></div>
-                {tab === 'corr' && graphData.meta && (
-                  <div className="flex items-center gap-1.5"><span className="text-text-secondary">Window:</span><span className="ticker-value text-text">{graphData.meta.days}D</span></div>
-                )}
-                {tab === 'know' && graphData.source && (
-                  <div className="flex items-center gap-1.5"><span className="text-text-secondary">Source:</span><span className="ticker-value text-accent capitalize">{graphData.source}</span></div>
+                <div className="flex items-center gap-1.5"><span className="text-text-secondary">Nodes:</span><span className="ticker-value text-text">{data.nodes?.length}</span></div>
+                <div className="flex items-center gap-1.5"><span className="text-text-secondary">Edges:</span><span className="ticker-value text-text">{data.edges?.length}</span></div>
+                {tab === 'corr' && data.meta && (
+                  <div className="flex items-center gap-1.5"><span className="text-text-secondary">Window:</span><span className="ticker-value text-text">{data.meta.days}D</span></div>
                 )}
               </div>
             )}
@@ -152,14 +208,17 @@ export default function Network() {
 
               <div className="pt-2 border-t border-border">
                 <p className="text-[10px] text-text-muted">
-                  {tab === 'corr'
-                    ? 'Edges show rolling correlations. Thick = stronger. Green = positive, Red = inverse.'
-                    : 'Arrows show data flow and relationships in the FinBrain knowledge graph.'}
+                  {tab === 'graph'
+                    ? 'Edges show factor sensitivities and correlations discovered in the market graph.'
+                    : 'Edges show rolling return correlations. Thick = stronger. Green = positive, Red = inverse.'}
                 </p>
               </div>
             </motion.div>
           )}
         </div>
+
+        {/* Insights strip */}
+        {intelligence?.insights && <InsightsPanel insights={intelligence.insights} />}
       </div>
     </div>
   )

@@ -58,6 +58,12 @@ export const fetchMacroDashboard  = ()    =>
 export const fetchGraphStats      = ()    =>
   api.get('/api/graph/stats').then(r => r.data)
 
+export const fetchGraphIntelligence = () =>
+  api.get('/api/graph/intelligence').then(r => r.data)
+
+export const fetchGraphAnalysis = (topN=20) =>
+  api.get('/api/graph/analysis', { params: { top_n: topN } }).then(r => r.data)
+
 export const postSemanticSearch   = (query, symbol=null, limit=10) =>
   api.post('/api/intelligence/semantic-search', {
     query, limit, filters: symbol ? { symbol } : null,

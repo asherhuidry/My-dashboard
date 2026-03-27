@@ -104,11 +104,30 @@ def get_correlation_graph(
     }
 
 
+_REL_COLORS: dict[str, str] = {
+    "SENSITIVE_TO":     "#f59e0b",
+    "CORRELATED_WITH":  "#10b981",
+    "BELONGS_TO":       "#8b5cf6",
+    "HAS_FEATURES":     "#3b82f6",
+}
+
+_NODE_COLORS: dict[str, str] = {
+    "Asset":          "#3b82f6",
+    "Sector":         "#8b5cf6",
+    "MacroIndicator": "#10b981",
+    "Signal":         "#f59e0b",
+    "Model":          "#ef4444",
+    "Pattern":        "#06b6d4",
+}
+
+
 @router.get("/graph/knowledge")
 def get_knowledge_graph() -> dict:
-    """
-    Return Neo4j-style knowledge graph nodes and relationships.
-    Falls back to a static representative graph if Neo4j is unavailable.
+    """Return the live market graph from Neo4j.
+
+    Includes relationship properties (beta, p_value, regime) so edges
+    carry meaning.  Returns an honest empty graph if Neo4j is
+    unavailable — no static/demo fallback.
     """
     try:
         from db.neo4j.client import get_driver
@@ -117,113 +136,62 @@ def get_knowledge_graph() -> dict:
             result = session.run("""
                 MATCH (n)-[r]->(m)
                 RETURN
-                  id(n) AS src_id, labels(n)[0] AS src_label, n.name AS src_name,
-                  type(r) AS rel,
-                  id(m) AS tgt_id, labels(m)[0] AS tgt_label, m.name AS tgt_name
-                LIMIT 300
+                  id(n) AS src_id, labels(n)[0] AS src_label,
+                  n.name AS src_name, n.asset_class AS src_class,
+                  type(r) AS rel, properties(r) AS rel_props,
+                  id(m) AS tgt_id, labels(m)[0] AS tgt_label,
+                  m.name AS tgt_name, m.asset_class AS tgt_class
+                LIMIT 500
             """)
             rows = result.data()
 
         node_map: dict[int, dict] = {}
         edges = []
-        label_colors = {
-            "Asset":          "#3b82f6",
-            "Sector":         "#8b5cf6",
-            "MacroIndicator": "#10b981",
-            "Signal":         "#f59e0b",
-            "Model":          "#ef4444",
-            "Pattern":        "#06b6d4",
-        }
         for row in rows:
-            for nid, nlabel, nname in [
-                (row["src_id"], row["src_label"], row["src_name"]),
-                (row["tgt_id"], row["tgt_label"], row["tgt_name"]),
+            for nid, nlabel, nname, ncls in [
+                (row["src_id"], row["src_label"], row["src_name"], row.get("src_class")),
+                (row["tgt_id"], row["tgt_label"], row["tgt_name"], row.get("tgt_class")),
             ]:
                 if nid not in node_map:
                     node_map[nid] = {
                         "id":    str(nid),
                         "label": nname or str(nid),
                         "type":  nlabel or "Node",
-                        "color": label_colors.get(nlabel, "#6b7280"),
+                        "color": _NODE_COLORS.get(nlabel, "#6b7280"),
                     }
-            edges.append({
+                    if ncls:
+                        node_map[nid]["class"] = ncls
+
+            rel_type = row["rel"]
+            props = row.get("rel_props") or {}
+            beta = props.get("beta")
+            edge: dict = {
                 "source": str(row["src_id"]),
                 "target": str(row["tgt_id"]),
-                "label":  row["rel"],
-            })
+                "label":  rel_type,
+                "color":  _REL_COLORS.get(rel_type, "#475569"),
+                "width":  round(min(abs(beta) * 6, 4), 2) if beta is not None else 1,
+            }
+            if props:
+                for k in ("beta", "p_value", "regime", "factor_group"):
+                    if k in props:
+                        edge[k] = props[k]
+            edges.append(edge)
 
-        return {"nodes": list(node_map.values()), "edges": edges, "source": "neo4j"}
+        return {
+            "nodes": list(node_map.values()),
+            "edges": edges,
+            "source": "neo4j",
+            "meta": {"node_count": len(node_map), "edge_count": len(edges)},
+        }
 
     except Exception:
-        # Static representative graph when Neo4j not populated
-        return _static_knowledge_graph()
-
-
-def _static_knowledge_graph() -> dict:
-    """Demo knowledge graph showing system architecture."""
-    nodes = [
-        # Data sources
-        {"id": "yf",    "label": "yfinance",     "type": "DataSource",    "color": "#06b6d4", "group": "source"},
-        {"id": "fred",  "label": "FRED API",      "type": "DataSource",    "color": "#06b6d4", "group": "source"},
-        {"id": "av",    "label": "Alpha Vantage", "type": "DataSource",    "color": "#06b6d4", "group": "source"},
-        # Storage
-        {"id": "ts",    "label": "TimescaleDB",   "type": "Database",      "color": "#3b82f6", "group": "db"},
-        {"id": "qd",    "label": "Qdrant",        "type": "VectorDB",      "color": "#3b82f6", "group": "db"},
-        {"id": "neo",   "label": "Neo4j",         "type": "GraphDB",       "color": "#3b82f6", "group": "db"},
-        {"id": "sb",    "label": "Supabase",      "type": "Database",      "color": "#3b82f6", "group": "db"},
-        # Assets
-        {"id": "aapl",  "label": "AAPL",          "type": "Asset",         "color": "#a78bfa", "group": "asset"},
-        {"id": "btc",   "label": "BTC",            "type": "Asset",         "color": "#f59e0b", "group": "asset"},
-        {"id": "spy",   "label": "SPY",            "type": "Asset",         "color": "#a78bfa", "group": "asset"},
-        {"id": "nvda",  "label": "NVDA",           "type": "Asset",         "color": "#a78bfa", "group": "asset"},
-        # Features/ML
-        {"id": "feat",  "label": "Features (74)", "type": "Pipeline",      "color": "#10b981", "group": "ml"},
-        {"id": "lstm",  "label": "LSTM Model",     "type": "Model",         "color": "#ef4444", "group": "ml"},
-        {"id": "sig",   "label": "Signals",        "type": "Signal",        "color": "#f59e0b", "group": "output"},
-        # Macro
-        {"id": "gdp",   "label": "GDP",            "type": "MacroIndicator","color": "#10b981", "group": "macro"},
-        {"id": "cpi",   "label": "CPI",            "type": "MacroIndicator","color": "#10b981", "group": "macro"},
-        {"id": "rates", "label": "Fed Rates",      "type": "MacroIndicator","color": "#10b981", "group": "macro"},
-        # Sectors
-        {"id": "tech",  "label": "Technology",     "type": "Sector",        "color": "#8b5cf6", "group": "sector"},
-        {"id": "fin",   "label": "Financials",     "type": "Sector",        "color": "#8b5cf6", "group": "sector"},
-        # Agents
-        {"id": "noise", "label": "Noise Filter",   "type": "Agent",         "color": "#f97316", "group": "agent"},
-        {"id": "arch",  "label": "Architect",      "type": "Agent",         "color": "#f97316", "group": "agent"},
-    ]
-
-    edges = [
-        {"source": "yf",   "target": "ts",    "label": "WRITES_TO"},
-        {"source": "fred", "target": "ts",    "label": "WRITES_TO"},
-        {"source": "av",   "target": "ts",    "label": "WRITES_TO"},
-        {"source": "ts",   "target": "feat",  "label": "FEEDS"},
-        {"source": "ts",   "target": "noise", "label": "SCANNED_BY"},
-        {"source": "feat", "target": "lstm",  "label": "TRAINS"},
-        {"source": "feat", "target": "qd",    "label": "EMBEDDED_IN"},
-        {"source": "lstm", "target": "sig",   "label": "GENERATES"},
-        {"source": "sig",  "target": "sb",    "label": "STORED_IN"},
-        {"source": "aapl", "target": "tech",  "label": "BELONGS_TO"},
-        {"source": "nvda", "target": "tech",  "label": "BELONGS_TO"},
-        {"source": "aapl", "target": "feat",  "label": "HAS_FEATURES"},
-        {"source": "btc",  "target": "feat",  "label": "HAS_FEATURES"},
-        {"source": "spy",  "target": "feat",  "label": "HAS_FEATURES"},
-        {"source": "nvda", "target": "feat",  "label": "HAS_FEATURES"},
-        {"source": "gdp",  "target": "feat",  "label": "MACRO_INPUT"},
-        {"source": "cpi",  "target": "feat",  "label": "MACRO_INPUT"},
-        {"source": "rates","target": "feat",  "label": "MACRO_INPUT"},
-        {"source": "aapl", "target": "btc",   "label": "CORRELATED_WITH"},
-        {"source": "spy",  "target": "aapl",  "label": "CORRELATED_WITH"},
-        {"source": "gdp",  "target": "sb",    "label": "STORED_IN"},
-        {"source": "cpi",  "target": "sb",    "label": "STORED_IN"},
-        {"source": "arch", "target": "sb",    "label": "WRITES_TO"},
-        {"source": "arch", "target": "neo",   "label": "READS"},
-        {"source": "noise","target": "sb",    "label": "QUARANTINE_TO"},
-        {"source": "aapl", "target": "neo",   "label": "NODE_IN"},
-        {"source": "btc",  "target": "neo",   "label": "NODE_IN"},
-        {"source": "tech", "target": "neo",   "label": "NODE_IN"},
-    ]
-
-    return {"nodes": nodes, "edges": edges, "source": "static"}
+        return {
+            "nodes": [],
+            "edges": [],
+            "source": "unavailable",
+            "meta": {"node_count": 0, "edge_count": 0},
+        }
 
 
 @router.get("/graph/stats")
