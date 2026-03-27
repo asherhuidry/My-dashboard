@@ -84,7 +84,7 @@ export default function Discoveries() {
           </div>
           <div>
             <h1 className="text-lg font-bold text-text">Discoveries</h1>
-            <p className="text-xs text-text-muted">Persisted correlation findings from weekly research runs</p>
+            <p className="text-xs text-text-muted">Persisted edges — measured correlations between market nodes</p>
           </div>
         </div>
         <button

@@ -1,29 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { fetchDbStats, fetchHealth, fetchPrices } from '../lib/api'
+import { fetchDbStats, fetchHealth, fetchPrices, fetchSourceSummary, fetchDiscoverySummary } from '../lib/api'
 import { fmt, pctColor } from '../lib/utils'
 import SearchBar from '../components/UI/SearchBar'
 import Header from '../components/Layout/Header'
 import {
-  Database, TrendingUp, TrendingDown, Activity, Layers, Zap,
+  Database, TrendingUp, TrendingDown, Activity, Layers,
   Brain, Cpu, Network, BarChart2, Shield, Clock, CheckCircle2, XCircle,
+  Globe, Compass,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 const WATCHLIST = ['AAPL','NVDA','MSFT','TSLA','META','AMZN','BTC-USD','ETH-USD','SOL-USD','SPY']
 
-const SYSTEM_NODES = [
-  { id: 'yfinance',  label: 'yFinance',   type: 'source',   color: '#3b82f6' },
-  { id: 'fred',      label: 'FRED',       type: 'source',   color: '#8b5cf6' },
-  { id: 'alpha',     label: 'AlphaV',     type: 'source',   color: '#06b6d4' },
-  { id: 'timescale', label: 'TimescaleDB',type: 'database', color: '#10b981' },
-  { id: 'supabase',  label: 'Supabase',   type: 'database', color: '#34d399' },
-  { id: 'qdrant',    label: 'Qdrant',     type: 'vector',   color: '#f59e0b' },
-  { id: 'neo4j',     label: 'Neo4j',      type: 'graph',    color: '#a78bfa' },
-  { id: 'lstm',      label: 'LSTM',       type: 'model',    color: '#ef4444' },
-  { id: 'features',  label: 'Features',   type: 'pipeline', color: '#3b82f6' },
-  { id: 'signals',   label: 'Signals',    type: 'output',   color: '#10b981' },
-]
 
 const fade = (delay = 0) => ({
   initial: { opacity: 0, y: 16 },
@@ -138,46 +127,67 @@ function ServiceRow({ label, ok, latency }) {
   )
 }
 
-function DataFlowVisual() {
-  const layers = [
-    { label: 'Data Sources', color: '#3b82f6', items: ['yFinance', 'FRED', 'AlphaV', 'CoinGecko'] },
-    { label: 'Storage',      color: '#10b981', items: ['TimescaleDB', 'Supabase', 'Qdrant', 'Neo4j'] },
-    { label: 'ML Pipeline',  color: '#8b5cf6', items: ['Features', 'LSTM', 'Signals', 'Backtest'] },
-    { label: 'Output',       color: '#f59e0b', items: ['API', 'Dashboard', 'Alerts', 'GitHub'] },
+function GraphStatusVisual({ srcSummary, discSummary }) {
+  const sources = srcSummary?.total ?? 0
+  const validated = srcSummary?.by_status?.validated ?? 0
+  const discoveries = discSummary?.total_discoveries ?? 0
+  const strong = discSummary?.by_strength?.strong ?? 0
+  const uniqueSeries = discSummary?.unique_series ?? 0
+  const runs = discSummary?.run_count ?? 0
+
+  const stages = [
+    { label: 'Sources',     color: '#3b82f6', items: [
+      { k: 'Registered', v: sources },
+      { k: 'Validated',  v: validated },
+      { k: 'Categories', v: Object.keys(srcSummary?.by_category ?? {}).length },
+    ]},
+    { label: 'Nodes',       color: '#10b981', items: [
+      { k: 'Unique series', v: uniqueSeries },
+      { k: 'Asset classes', v: (srcSummary?.by_category ? Object.keys(srcSummary.by_category).length : 0) },
+    ]},
+    { label: 'Edges',       color: '#8b5cf6', items: [
+      { k: 'Discoveries',  v: discoveries },
+      { k: 'Strong',       v: strong },
+      { k: 'Runs',         v: runs },
+    ]},
+    { label: 'Research',    color: '#f59e0b', items: [
+      { k: 'Analyzer',    v: 'live' },
+      { k: 'Screener',    v: 'live' },
+      { k: 'AI Research',  v: 'live' },
+    ]},
   ]
+
   return (
     <div className="glass-card rounded-xl border border-border p-5">
       <div className="flex items-center gap-2 mb-5">
         <div className="w-7 h-7 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center">
           <Network size={13} className="text-accent" />
         </div>
-        <span className="text-xs font-semibold text-text uppercase tracking-wider">Data Flow Architecture</span>
+        <span className="text-xs font-semibold text-text uppercase tracking-wider">Market Graph Status</span>
       </div>
       <div className="flex items-stretch gap-2 overflow-x-auto pb-1">
-        {layers.map((layer, li) => (
-          <div key={layer.label} className="flex-1 min-w-[120px]">
+        {stages.map((stage, si) => (
+          <div key={stage.label} className="flex-1 min-w-[120px]">
             <div className="text-[9px] font-semibold uppercase tracking-wider mb-2"
-              style={{ color: layer.color }}>{layer.label}</div>
+              style={{ color: stage.color }}>{stage.label}</div>
             <div className="space-y-1.5">
-              {layer.items.map(item => (
-                <div key={item}
+              {stage.items.map(item => (
+                <div key={item.k}
                   className="rounded-lg px-2.5 py-1.5 text-[10px] font-medium text-text-secondary
-                    border transition-all hover:text-text"
-                  style={{ background: `${layer.color}0d`, borderColor: `${layer.color}25` }}>
-                  {item}
+                    border transition-all hover:text-text flex items-center justify-between"
+                  style={{ background: `${stage.color}0d`, borderColor: `${stage.color}25` }}>
+                  <span>{item.k}</span>
+                  <span className="font-mono font-bold" style={{ color: stage.color }}>
+                    {typeof item.v === 'number' ? item.v : item.v}
+                  </span>
                 </div>
               ))}
             </div>
-            {/* Arrow between layers */}
-            {li < layers.length - 1 && (
-              <div className="hidden" /> /* spacer; arrows rendered via grid gap */
-            )}
           </div>
         ))}
       </div>
-      {/* Flow arrows */}
       <div className="flex items-center justify-around mt-3 px-1">
-        {layers.slice(0,-1).map((_, i) => (
+        {stages.slice(0,-1).map((_, i) => (
           <div key={i} className="flex-1 flex items-center justify-end pr-1 text-text-muted/40 text-xs">→</div>
         ))}
       </div>
@@ -188,6 +198,8 @@ function DataFlowVisual() {
 export default function Overview() {
   const { data: stats }  = useQuery({ queryKey: ['db-stats'], queryFn: fetchDbStats, staleTime: 60_000 })
   const { data: health } = useQuery({ queryKey: ['health'],   queryFn: fetchHealth,  staleTime: 30_000 })
+  const { data: srcSummary }  = useQuery({ queryKey: ['sources-summary'],     queryFn: fetchSourceSummary,    staleTime: 60_000 })
+  const { data: discSummary } = useQuery({ queryKey: ['discoveries-summary'], queryFn: fetchDiscoverySummary, staleTime: 60_000 })
 
   const priceRows  = stats?.tables?.find(t => t.table === 'prices')?.rows ?? 0
   const macroRows  = stats?.tables?.find(t => t.table === 'macro_events')?.rows ?? 0
@@ -198,7 +210,7 @@ export default function Overview() {
 
   return (
     <div className="flex flex-col h-full">
-      <Header title="Overview" subtitle="FinBrain Autonomous Financial Intelligence" />
+      <Header title="Overview" subtitle="FinBrain Market Graph Engine" />
 
       <div className="flex-1 overflow-y-auto bg-grid p-5 space-y-5">
 
@@ -218,18 +230,18 @@ export default function Overview() {
           <div className="relative z-10 p-8 text-center">
             <div className="inline-flex items-center gap-1.5 text-[9px] text-accent uppercase tracking-[0.15em]
               mb-4 px-3 py-1.5 rounded-full border border-accent/25 bg-accent/8">
-              <Zap size={9} /> AI-Powered Financial Intelligence
+              <Network size={9} /> Market Graph Engine
             </div>
             <h2 className="text-3xl font-bold text-text mb-2 leading-tight">
-              Analyze any{' '}
-              <span className="gradient-text">stock</span>{' '}or{' '}
-              <span className="gradient-text-green">crypto</span>
+              <span className="gradient-text">Sources</span>{' · '}
+              <span className="gradient-text-green">Nodes</span>{' · '}
+              <span className="gradient-text">Edges</span>
             </h2>
             <p className="text-text-secondary text-sm mb-7 max-w-md mx-auto">
-              74-feature ML pipeline · Real-time OHLCV · Signal consensus · LSTM predictions
+              Governed data sources · Persisted correlations · Evolving market structure
             </p>
             <div className="flex justify-center">
-              <SearchBar placeholder="Try AAPL, NVDA, BTC-USD, ETH-USD, MSFT…" className="w-full max-w-sm" />
+              <SearchBar placeholder="Search any asset: AAPL, BTC-USD, SPY..." className="w-full max-w-sm" />
             </div>
           </div>
         </motion.div>
@@ -260,7 +272,7 @@ export default function Overview() {
         {/* ── Middle row: data flow + service health ─────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2">
-            <DataFlowVisual />
+            <GraphStatusVisual srcSummary={srcSummary} discSummary={discSummary} />
           </div>
 
           {/* Service health */}
@@ -320,24 +332,24 @@ export default function Overview() {
         <motion.div {...fade(0.25)}
           className="glass rounded-xl border border-border p-4 flex items-center flex-wrap gap-6">
           <div className="flex items-center gap-2">
-            <Brain size={14} className="text-purple" />
-            <span className="text-[10px] text-text-muted">Model:</span>
-            <span className="text-[10px] text-text-secondary font-medium">Claude Haiku (AI Chat)</span>
+            <Globe size={14} className="text-accent" />
+            <span className="text-[10px] text-text-muted">Sources:</span>
+            <span className="text-[10px] text-text-secondary font-medium">{srcSummary?.total ?? 0} registered · {srcSummary?.by_status?.validated ?? 0} validated</span>
           </div>
           <div className="flex items-center gap-2">
-            <Cpu size={14} className="text-accent" />
-            <span className="text-[10px] text-text-muted">ML:</span>
-            <span className="text-[10px] text-text-secondary font-medium">FinBrain LSTM · 74 features</span>
+            <Compass size={14} className="text-purple" />
+            <span className="text-[10px] text-text-muted">Edges:</span>
+            <span className="text-[10px] text-text-secondary font-medium">{discSummary?.total_discoveries ?? 0} discoveries · {discSummary?.by_strength?.strong ?? 0} strong</span>
           </div>
           <div className="flex items-center gap-2">
             <Clock size={14} className="text-positive" />
             <span className="text-[10px] text-text-muted">Refresh:</span>
-            <span className="text-[10px] text-text-secondary font-medium">30s prices · 60s stats</span>
+            <span className="text-[10px] text-text-secondary font-medium">30s prices · 60s graph state</span>
           </div>
           <div className="flex items-center gap-2">
             <Layers size={14} className="text-cyan" />
-            <span className="text-[10px] text-text-muted">Assets:</span>
-            <span className="text-[10px] text-text-secondary font-medium">Stocks · Crypto · Forex · Commodities</span>
+            <span className="text-[10px] text-text-muted">Coverage:</span>
+            <span className="text-[10px] text-text-secondary font-medium">Equities · Crypto · Macro · Forex</span>
           </div>
         </motion.div>
 

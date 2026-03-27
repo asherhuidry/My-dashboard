@@ -1,9 +1,14 @@
-# FinBrain — Autonomous Financial Intelligence System
+# FinBrain — Market Graph Engine
 
 ## What this project is
-A self-evolving financial AI that autonomously ingests data, trains ML models,
-discovers patterns across all asset classes, and improves itself continuously
-without human intervention. Every layer evolves on its own schedule.
+A governed market graph and research workbench that continuously ingests market
+and macro data, represents assets and indicators as nodes, discovers and persists
+relationships as edges, and prepares the evolving graph substrate for future
+neural / representation-learning systems.
+
+This is NOT a generic finance dashboard and NOT a vague "self-evolving AI."
+It is a continuously updating market intelligence engine built on evidence,
+measured relationships, and governed data sources.
 
 ## Tech stack
 - Python 3.11+ with full type hints everywhere

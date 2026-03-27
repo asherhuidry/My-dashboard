@@ -1,23 +1,85 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, LineChart, Database, Activity, Network,
-  Brain, SlidersHorizontal, Cpu, FlaskConical, Search, Zap, TestTube2, Compass, Globe,
+  Brain, SlidersHorizontal, Cpu, FlaskConical, Search, Compass, Globe,
 } from 'lucide-react'
 
-const nav = [
-  { to:'/',              icon: LayoutDashboard,  label: 'Overview',      desc: 'System status'   },
-  { to:'/analyze',       icon: LineChart,         label: 'Analyzer',      desc: 'Deep analysis'   },
-  { to:'/intelligence',  icon: Zap,               label: 'Intelligence',  desc: 'Macro · supply chain' },
-  { to:'/research',      icon: Search,            label: 'Research',      desc: 'AI intelligence' },
-  { to:'/experiments',   icon: TestTube2,          label: 'Experiments',   desc: 'Model runs'      },
-  { to:'/discoveries',   icon: Compass,            label: 'Discoveries',   desc: 'Research output' },
-  { to:'/sources',       icon: Globe,              label: 'Sources',       desc: 'Data pipeline'   },
-  { to:'/backtest',      icon: FlaskConical,      label: 'Backtest',      desc: 'Signal testing'  },
-  { to:'/screener',      icon: SlidersHorizontal, label: 'Screener',      desc: 'Asset scanner'   },
-  { to:'/network',       icon: Network,           label: 'Network',       desc: 'Data graph'      },
-  { to:'/database',      icon: Database,          label: 'Database',      desc: 'DB explorer'     },
-  { to:'/evolution',     icon: Activity,          label: 'Evolution',     desc: 'Agent logs'      },
+// ── Market Graph core ─────────────────────────────────────────────
+const graphNav = [
+  { to:'/',              icon: LayoutDashboard,  label: 'Overview',       desc: 'System health'     },
+  { to:'/sources',       icon: Globe,            label: 'Sources',        desc: 'Data origins'      },
+  { to:'/discoveries',   icon: Compass,          label: 'Discoveries',    desc: 'Edges · correlations' },
+  { to:'/network',       icon: Network,          label: 'Graph',          desc: 'Market structure'  },
 ]
+
+// ── Research tools ────────────────────────────────────────────────
+const toolsNav = [
+  { to:'/analyze',       icon: LineChart,         label: 'Analyzer',      desc: 'Asset deep-dive'   },
+  { to:'/research',      icon: Search,            label: 'Research',      desc: 'AI-assisted'       },
+  { to:'/screener',      icon: SlidersHorizontal, label: 'Screener',      desc: 'Asset scanner'     },
+  { to:'/backtest',      icon: FlaskConical,      label: 'Backtest',      desc: 'Signal testing'    },
+]
+
+// ── System ────────────────────────────────────────────────────────
+const systemNav = [
+  { to:'/database',      icon: Database,          label: 'Database',      desc: 'Tables · rows'     },
+  { to:'/evolution',     icon: Activity,          label: 'Activity',      desc: 'Agent log'         },
+]
+
+function NavLabel({ text }) {
+  return (
+    <div className="hidden lg:block px-3 pt-4 pb-1.5">
+      <span className="text-[9px] text-text-muted/60 uppercase tracking-[0.15em] font-semibold">{text}</span>
+    </div>
+  )
+}
+
+function NavSection({ items }) {
+  return (
+    <div className="space-y-0.5">
+      {items.map(({ to, icon: Icon, label, desc }) => (
+        <NavLink
+          key={to}
+          to={to}
+          end={to === '/'}
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 group relative overflow-hidden ${
+              isActive
+                ? 'bg-accent/12 text-accent border border-accent/20 shadow-glow'
+                : 'text-text-secondary hover:text-text hover:bg-bg-hover border border-transparent'
+            }`
+          }
+        >
+          {({ isActive }) => (
+            <>
+              {isActive && (
+                <div className="absolute inset-0 bg-gradient-to-r from-accent/8 to-transparent pointer-events-none" />
+              )}
+              <div className={`relative flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
+                isActive
+                  ? 'bg-accent/20 border border-accent/30'
+                  : 'bg-bg-hover/50 border border-border group-hover:border-border-bright'
+              }`}>
+                <Icon size={14} className={isActive ? 'text-accent' : 'text-text-muted group-hover:text-text-secondary'} />
+              </div>
+              <div className="hidden lg:block overflow-hidden">
+                <div className={`text-xs font-semibold leading-tight transition-colors ${
+                  isActive ? 'text-accent' : 'text-text-secondary group-hover:text-text'
+                }`}>{label}</div>
+                <div className="text-[9px] text-text-muted leading-tight mt-0.5">{desc}</div>
+              </div>
+              {isActive && (
+                <div className="absolute right-2 hidden lg:block">
+                  <div className="w-1 h-1 rounded-full bg-accent" />
+                </div>
+              )}
+            </>
+          )}
+        </NavLink>
+      ))}
+    </div>
+  )
+}
 
 export default function Sidebar() {
   return (
@@ -39,67 +101,32 @@ export default function Sidebar() {
         <div className="hidden lg:block overflow-hidden">
           <div className="text-sm font-bold gradient-text leading-tight">FinBrain</div>
           <div className="text-[9px] text-text-muted uppercase tracking-[0.15em] leading-tight mt-0.5">
-            Intelligence v1
+            Market Graph
           </div>
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
-        {nav.map(({ to, icon: Icon, label, desc }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === '/'}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 group relative overflow-hidden ${
-                isActive
-                  ? 'bg-accent/12 text-accent border border-accent/20 shadow-glow'
-                  : 'text-text-secondary hover:text-text hover:bg-bg-hover border border-transparent'
-              }`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                {isActive && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-accent/8 to-transparent pointer-events-none" />
-                )}
-                <div className={`relative flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
-                  isActive
-                    ? 'bg-accent/20 border border-accent/30'
-                    : 'bg-bg-hover/50 border border-border group-hover:border-border-bright'
-                }`}>
-                  <Icon size={14} className={isActive ? 'text-accent' : 'text-text-muted group-hover:text-text-secondary'} />
-                </div>
-                <div className="hidden lg:block overflow-hidden">
-                  <div className={`text-xs font-semibold leading-tight transition-colors ${
-                    isActive ? 'text-accent' : 'text-text-secondary group-hover:text-text'
-                  }`}>{label}</div>
-                  <div className="text-[9px] text-text-muted leading-tight mt-0.5">{desc}</div>
-                </div>
-                {isActive && (
-                  <div className="absolute right-2 hidden lg:block">
-                    <div className="w-1 h-1 rounded-full bg-accent" />
-                  </div>
-                )}
-              </>
-            )}
-          </NavLink>
-        ))}
+      <nav className="flex-1 py-3 px-2 overflow-y-auto">
+        <NavSection items={graphNav} />
+        <NavLabel text="Tools" />
+        <NavSection items={toolsNav} />
+        <NavLabel text="System" />
+        <NavSection items={systemNav} />
       </nav>
 
-      {/* Bottom: model badge */}
+      {/* Bottom: status badge */}
       <div className="p-3 border-t border-border hidden lg:block">
         <div className="rounded-xl p-3 bg-gradient-to-br from-accent/6 to-purple/6 border border-accent/15">
           <div className="flex items-center gap-2 mb-1.5">
-            <Cpu size={11} className="text-accent/70" />
-            <span className="text-[9px] font-semibold text-text-muted uppercase tracking-wider">AI Engine</span>
+            <Network size={11} className="text-accent/70" />
+            <span className="text-[9px] font-semibold text-text-muted uppercase tracking-wider">Graph Engine</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full bg-positive pulse-dot" />
-            <span className="text-[10px] text-text-secondary font-medium">Claude Sonnet Active</span>
+            <span className="text-[10px] text-text-secondary font-medium">Sources · Edges · Research</span>
           </div>
-          <div className="text-[9px] text-text-muted mt-1">Research · Chat · Predictions</div>
+          <div className="text-[9px] text-text-muted mt-1">Nodes · Correlations · Evidence</div>
         </div>
       </div>
     </aside>

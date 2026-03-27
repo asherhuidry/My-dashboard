@@ -135,7 +135,7 @@ export default function Sources() {
           </div>
           <div>
             <h1 className="text-lg font-bold text-text">Sources</h1>
-            <p className="text-xs text-text-muted">Source registry lifecycle — scout / probe / validation pipeline</p>
+            <p className="text-xs text-text-muted">Data origins — governed sources feeding the market graph</p>
           </div>
         </div>
         <button
