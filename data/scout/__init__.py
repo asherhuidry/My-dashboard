@@ -1,11 +1,11 @@
-"""Bounded source scout — candidate intake, scoring, and connector proposals.
+"""Bounded source scout — candidate intake, scoring, connector proposals, and probing.
 
 Converts raw candidate source definitions into normalized records, scores
-them for usefulness, generates connector proposals, and optionally registers
-them in the source registry or creates evidence/claim stubs.
+them for usefulness, generates connector proposals, optionally registers them
+in the source registry, and can perform lightweight HTTP reachability probes.
 
 Nothing in this module auto-approves sources, writes to production
-connectors, or calls external services.
+connectors, or scrapes arbitrary content.
 
 Public API::
 
@@ -22,6 +22,14 @@ Public API::
         register_catalog,
         evidence_from_candidate,
         source_claim_from_candidate,
+        # probe
+        ProbeResult,
+        probe_source_url,
+        probe_url,
+        ProbeRegistryResult,
+        apply_probe_to_registry,
+        probe_and_register,
+        evidence_from_probe,
     )
 """
 from data.scout.schema import (
@@ -40,6 +48,13 @@ from data.scout.evidence_hooks import (
     evidence_from_candidate,
     source_claim_from_candidate,
 )
+from data.scout.probe import ProbeResult, probe_source_url, probe_url
+from data.scout.probe_registry import (
+    ProbeRegistryResult,
+    apply_probe_to_registry,
+    probe_and_register,
+)
+from data.scout.probe_evidence import evidence_from_probe
 
 __all__ = [
     # schema
@@ -59,4 +74,14 @@ __all__ = [
     # evidence hooks
     "evidence_from_candidate",
     "source_claim_from_candidate",
+    # probe
+    "ProbeResult",
+    "probe_source_url",
+    "probe_url",
+    # probe registry
+    "ProbeRegistryResult",
+    "apply_probe_to_registry",
+    "probe_and_register",
+    # probe evidence
+    "evidence_from_probe",
 ]
