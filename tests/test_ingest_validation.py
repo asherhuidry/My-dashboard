@@ -149,7 +149,7 @@ class TestFredValidation:
     def _valid_series(self, n: int = 60) -> pd.Series:
         end = datetime.now(tz=timezone.utc) - timedelta(days=5)
         idx = pd.bdate_range(end=end, periods=n)
-        return pd.Series(np.random.uniform(2.0, 5.0, size=n), index=idx)
+        return pd.Series(np.random.uniform(2.0, 5.0, size=len(idx)), index=idx)
 
     def _tiny_series(self) -> pd.Series:
         idx = pd.bdate_range(end=datetime.now(tz=timezone.utc), periods=2)
