@@ -483,6 +483,8 @@ def run(symbols: list[str] | None = None) -> list[CorrelationFinding]:
     """Run full correlation discovery on the FinBrain universe.
 
     This is the main entrypoint called by GitHub Actions on a weekly schedule.
+    After discovering and persisting correlations, automatically materializes
+    the full market graph in Neo4j so the graph compounds by default.
 
     Args:
         symbols: Optional symbol list override. Defaults to the full universe.
@@ -507,23 +509,65 @@ def run(symbols: list[str] | None = None) -> list[CorrelationFinding]:
     # Persist discoveries to queryable store
     run_id = _persist_discoveries(findings)
 
+    # Materialize the full graph in Neo4j after successful persistence.
+    # Uses MERGE so it's idempotent — safe to run every time.
+    # Failures here never affect discovery persistence.
+    graph_result = _materialize_graph(run_id)
+
     # Log summary to evolution audit trail
     try:
         from db.supabase.client import log_evolution, EvolutionLogEntry
+        after_state: dict = {
+            "findings":      len(findings),
+            "strong":        sum(1 for f in findings if f.strength == "strong"),
+            "with_granger":  sum(1 for f in findings if f.granger_p and f.granger_p < 0.05),
+            "run_id":        run_id,
+        }
+        if graph_result:
+            after_state["graph"] = graph_result
         log_evolution(EvolutionLogEntry(
             agent_id    = AGENT_ID,
             action      = "hunt_correlations",
-            after_state = {
-                "findings":      len(findings),
-                "strong":        sum(1 for f in findings if f.strength == "strong"),
-                "with_granger":  sum(1 for f in findings if f.granger_p and f.granger_p < 0.05),
-                "run_id":        run_id,
-            },
+            after_state = after_state,
         ))
     except Exception:
         pass
 
     return findings
+
+
+def _materialize_graph(run_id: str | None) -> dict | None:
+    """Materialize persisted discoveries into the Neo4j market graph.
+
+    Called automatically after successful discovery persistence.
+    Only runs if persistence succeeded (run_id is not None).
+    Failures are logged but never propagated — discovery data is safe.
+
+    Args:
+        run_id: The discovery run_id, or None if persistence failed.
+
+    Returns:
+        Materialization summary dict, or None if skipped/failed.
+    """
+    if run_id is None:
+        log.info("Skipping graph materialization — discovery persistence failed")
+        return None
+
+    try:
+        from data.agents.graph_materializer import materialize
+        log.info("Materializing market graph after discovery run %s...", run_id)
+        result = materialize(min_strength="moderate")
+        log.info(
+            "Graph materialized: %d nodes, %d edges (%d CORRELATED_WITH, %d CAUSES)",
+            result.get("asset_nodes_merged", 0) + result.get("macro_nodes_merged", 0),
+            result.get("edges_merged", 0),
+            result.get("correlated_with_edges", 0),
+            result.get("causes_edges", 0),
+        )
+        return result
+    except Exception as exc:
+        log.warning("Graph materialization failed (discoveries are safe): %s", exc)
+        return None
 
 
 def _persist_discoveries(findings: list[CorrelationFinding]) -> str | None:

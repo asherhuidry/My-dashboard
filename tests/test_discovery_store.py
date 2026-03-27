@@ -207,15 +207,17 @@ class TestCorrelationHunterPersistence:
         defaults.update(kwargs)
         return CorrelationFinding(**defaults)
 
+    @patch("data.agents.correlation_hunter._materialize_graph")
     @patch("data.agents.correlation_hunter._persist_discoveries")
     @patch("data.agents.correlation_hunter.hunt_correlations")
-    def test_run_calls_persist(self, mock_hunt, mock_persist):
+    def test_run_calls_persist(self, mock_hunt, mock_persist, mock_mat):
         """run() should call _persist_discoveries with the findings."""
         from data.agents.correlation_hunter import run
 
         findings = [self._make_finding(), self._make_finding(series_b="TLT")]
         mock_hunt.return_value = findings
         mock_persist.return_value = "run-id-123"
+        mock_mat.return_value = None
 
         with patch("data.agents.correlation_hunter.log_evolution", create=True):
             with patch("db.supabase.client.get_client", return_value=_make_mock_client([{}])):
@@ -275,3 +277,107 @@ class TestCorrelationHunterPersistence:
 
         payloads = mock_client.table().insert.call_args[0][0]
         assert payloads[0]["computed_at"] == ts.isoformat()
+
+
+# ── Discovery → Graph materialization integration ────────────────────────────
+
+class TestDiscoveryGraphLoop:
+    """Test that run() automatically materializes the graph after persistence."""
+
+    def _make_finding(self, **kwargs):
+        from data.agents.correlation_hunter import CorrelationFinding
+        defaults = dict(
+            series_a="SPY", series_b="GLD", lag_days=5,
+            pearson_r=0.72, granger_p=0.03, mutual_info=0.1,
+            strength="strong", relationship_type="discovered",
+        )
+        defaults.update(kwargs)
+        return CorrelationFinding(**defaults)
+
+    @patch("data.agents.correlation_hunter._materialize_graph")
+    @patch("data.agents.correlation_hunter._persist_discoveries")
+    @patch("data.agents.correlation_hunter.hunt_correlations")
+    def test_run_calls_materialize_after_persist(self, mock_hunt, mock_persist, mock_mat):
+        """run() should call _materialize_graph after successful persistence."""
+        from data.agents.correlation_hunter import run
+
+        findings = [self._make_finding()]
+        mock_hunt.return_value = findings
+        mock_persist.return_value = "run-id-abc"
+        mock_mat.return_value = {"edges_merged": 5}
+
+        with patch("db.supabase.client.log_evolution"):
+            with patch("db.supabase.client.get_client", return_value=_make_mock_client([{}])):
+                run(symbols=["SPY", "GLD"])
+
+        mock_persist.assert_called_once_with(findings)
+        mock_mat.assert_called_once_with("run-id-abc")
+
+    @patch("data.agents.correlation_hunter._materialize_graph")
+    @patch("data.agents.correlation_hunter._persist_discoveries")
+    @patch("data.agents.correlation_hunter.hunt_correlations")
+    def test_run_skips_materialize_when_persist_fails(self, mock_hunt, mock_persist, mock_mat):
+        """run() should pass None to _materialize_graph when persistence fails."""
+        from data.agents.correlation_hunter import run
+
+        mock_hunt.return_value = [self._make_finding()]
+        mock_persist.return_value = None  # persistence failed
+
+        with patch("db.supabase.client.log_evolution"):
+            with patch("db.supabase.client.get_client", return_value=_make_mock_client([{}])):
+                run(symbols=["SPY", "GLD"])
+
+        mock_mat.assert_called_once_with(None)
+
+    def test_materialize_graph_skips_on_none_run_id(self):
+        """_materialize_graph should return None when run_id is None."""
+        from data.agents.correlation_hunter import _materialize_graph
+        assert _materialize_graph(None) is None
+
+    @patch("data.agents.graph_materializer.materialize")
+    def test_materialize_graph_calls_materializer(self, mock_mat):
+        """_materialize_graph should call materialize(min_strength='moderate')."""
+        from data.agents.correlation_hunter import _materialize_graph
+
+        mock_mat.return_value = {
+            "asset_nodes_merged": 10,
+            "macro_nodes_merged": 5,
+            "edges_merged": 20,
+            "correlated_with_edges": 18,
+            "causes_edges": 2,
+        }
+        result = _materialize_graph("run-id-xyz")
+
+        mock_mat.assert_called_once_with(min_strength="moderate")
+        assert result["edges_merged"] == 20
+
+    @patch("data.agents.graph_materializer.materialize")
+    def test_materialize_graph_handles_failure_safely(self, mock_mat):
+        """_materialize_graph should return None on failure, not raise."""
+        from data.agents.correlation_hunter import _materialize_graph
+
+        mock_mat.side_effect = Exception("Neo4j connection refused")
+        result = _materialize_graph("run-id-xyz")
+        assert result is None
+
+    @patch("data.agents.correlation_hunter._materialize_graph")
+    @patch("data.agents.correlation_hunter._persist_discoveries")
+    @patch("data.agents.correlation_hunter.hunt_correlations")
+    def test_graph_stats_included_in_evolution_log(self, mock_hunt, mock_persist, mock_mat):
+        """run() should include graph stats in the evolution log when materialization succeeds."""
+        from data.agents.correlation_hunter import run
+
+        mock_hunt.return_value = [self._make_finding()]
+        mock_persist.return_value = "run-id-log"
+        mock_mat.return_value = {"edges_merged": 42, "asset_nodes_merged": 10}
+
+        mock_log_evo = MagicMock()
+        with patch("db.supabase.client.log_evolution", mock_log_evo):
+            with patch("db.supabase.client.get_client", return_value=_make_mock_client([{}])):
+                run(symbols=["SPY", "GLD"])
+
+        # Check that the evolution log entry includes graph info
+        call_args = mock_log_evo.call_args
+        entry = call_args[0][0]
+        assert "graph" in entry.after_state
+        assert entry.after_state["graph"]["edges_merged"] == 42
