@@ -228,6 +228,74 @@ print(store.summary_stats())
 
 ---
 
+## Pipeline bridge
+
+`ml/evidence/bridge.py` converts empirical pipeline outputs into evidence items
+and claims automatically.  Use it immediately after a comparison or walk-forward
+run so results flow into the evidence layer without manual bookkeeping.
+
+### After a walk-forward comparison
+
+```python
+from ml.evidence import ClaimStore
+from ml.evidence.bridge import bridge_wf_comparison
+from ml.comparison.runner import run_comparison
+
+store  = ClaimStore()
+result = run_comparison("AAPL", df, walk_forward=True)
+
+# Generates per-fold EvidenceItems, aggregate EvidenceItem, and
+# performance Claims — all PROPOSED, nothing auto-promoted.
+saved = bridge_wf_comparison(result, store, wf_results=result.wf_results)
+print(saved.evidence_ids)   # list of new evidence IDs
+print(saved.claim_ids)      # list of new claim IDs
+```
+
+### After a single-split comparison
+
+```python
+from ml.evidence.bridge import bridge_comparison
+
+result = run_comparison("SPY", df, walk_forward=False)
+saved  = bridge_comparison(result, store, pipeline_results=result.pipeline_results)
+```
+
+### Manual bridging (fine-grained control)
+
+```python
+from ml.evidence.bridge import (
+    evidence_from_wf_result,
+    claims_from_wf_comparison,
+    save_evidence_bundle,
+)
+
+# Collect evidence from each model's WalkForwardResult
+items = []
+for model_key, wf in wf_results.items():
+    items.extend(evidence_from_wf_result(wf))
+
+# Generate claim bundles from the comparison result
+bundles = claims_from_wf_comparison(wf_comparison_result)
+
+# Persist everything and link evidence to claims
+saved = save_evidence_bundle(store, items, bundles)
+```
+
+### Claim confidence derivation
+
+Bridge-generated confidence values come from aggregate fold statistics, **never
+from LLM output or narrative text**:
+
+| Condition | Confidence |
+|---|---|
+| `overall_recommended=True` | 0.70 |
+| `mean_accuracy >= 0.52` and majority folds beat benchmark | 0.58 |
+| Otherwise | 0.42 |
+
+Winner claims receive a fixed 0.55 regardless of whether promotion was granted.
+
+---
+
 ## Persistence
 
 All data is stored in `data/evidence/claims.json` (override with
