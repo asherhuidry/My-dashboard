@@ -1,0 +1,89 @@
+name: FinBrainNet — Neural Training Pipeline
+
+on:
+  schedule:
+    # Full offline training: Sundays at 2 AM ET
+    - cron: '0 7 * * 0'
+    # Daily online update: weekdays at 5 AM ET (before market open)
+    - cron: '0 10 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Training mode'
+        required: false
+        default: 'daily'
+        type: choice
+        options:
+          - daily
+          - offline
+
+env:
+  SUPABASE_URL:      ${{ secrets.SUPABASE_URL }}
+  SUPABASE_KEY:      ${{ secrets.SUPABASE_KEY }}
+  FRED_API_KEY:      ${{ secrets.FRED_API_KEY }}
+  NEO4J_URI:         ${{ secrets.NEO4J_URI }}
+  NEO4J_USER:        ${{ secrets.NEO4J_USER }}
+  NEO4J_PASSWORD:    ${{ secrets.NEO4J_PASSWORD }}
+
+jobs:
+  neural-train:
+    name: "FinBrainNet ${{ github.event.inputs.mode || (github.event.schedule == '0 7 * * 0' && 'offline' || 'daily') }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pandas-datareader statsmodels
+
+      # Restore previous checkpoint (so daily update can fine-tune it)
+      - name: Restore model checkpoint
+        uses: actions/cache@v4
+        with:
+          path: checkpoints/neural/
+          key: neural-checkpoint-${{ github.run_number }}
+          restore-keys: |
+            neural-checkpoint-
+
+      - name: Create checkpoint directory
+        run: mkdir -p checkpoints/neural
+
+      - name: Run FinBrainNet training
+        run: |
+          python -c "
+          import logging
+          logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+
+          import os
+          mode = '${{ github.event.inputs.mode }}' or (
+              'offline' if '0 7 * * 0' in '${{ github.event.schedule }}' else 'daily'
+          )
+
+          from ml.neural.train_unified import run
+          result = run(mode=mode, epochs=20 if mode == 'offline' else 0)
+          print('Result:', result)
+          "
+
+      - name: Save checkpoint artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: neural-checkpoint-${{ github.run_number }}
+          path: checkpoints/neural/
+          retention-days: 30
+
+      # Save checkpoint to cache for next run
+      - name: Update checkpoint cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: checkpoints/neural/
+          key: neural-checkpoint-${{ github.run_number }}

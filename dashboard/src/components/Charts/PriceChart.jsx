@@ -1,111 +1,118 @@
 import { useEffect, useRef, useState } from 'react'
-import { createChart, CrosshairMode, LineStyle } from 'lightweight-charts'
+import {
+  createChart, ColorType, CrosshairMode, LineStyle,
+  CandlestickSeries, HistogramSeries, LineSeries,
+} from 'lightweight-charts'
 
-const THEME = {
-  layout:     { background: { color: 'transparent' }, textColor: '#94a3b8' },
-  grid:       { vertLines: { color: '#1a2740', style: LineStyle.Dashed }, horzLines: { color: '#1a2740', style: LineStyle.Dashed } },
-  crosshair:  { mode: CrosshairMode.Normal, vertLine: { color: '#3b82f6', labelBackgroundColor: '#0f1624' }, horzLine: { color: '#3b82f6', labelBackgroundColor: '#0f1624' } },
-  rightPriceScale: { borderColor: '#1a2740' },
-  timeScale:  { borderColor: '#1a2740', timeVisible: true, secondsVisible: false },
+const BG = 'transparent'
+
+function makeTheme(container) {
+  return {
+    layout: {
+      background: { type: ColorType.Solid, color: BG },
+      textColor: '#64748b',
+      fontSize: 11,
+    },
+    grid: {
+      vertLines: { color: 'rgba(26,39,64,0.6)', style: LineStyle.Dashed },
+      horzLines: { color: 'rgba(26,39,64,0.6)', style: LineStyle.Dashed },
+    },
+    crosshair: {
+      mode: CrosshairMode.Normal,
+      vertLine: { color: '#3b82f6', width: 1, labelBackgroundColor: '#0f1624' },
+      horzLine: { color: '#3b82f6', width: 1, labelBackgroundColor: '#0f1624' },
+    },
+    rightPriceScale: { borderColor: 'rgba(26,39,64,0.8)', scaleMargins: { top: 0.08, bottom: 0.18 } },
+    timeScale: { borderColor: 'rgba(26,39,64,0.8)', timeVisible: true, secondsVisible: false },
+    width:  container.clientWidth,
+    height: container.clientHeight,
+  }
+}
+
+const OVERLAY_STYLES = {
+  bb_upper:  { color: 'rgba(139,92,246,0.6)',  lineWidth: 1, lineStyle: LineStyle.Dashed },
+  bb_lower:  { color: 'rgba(139,92,246,0.6)',  lineWidth: 1, lineStyle: LineStyle.Dashed },
+  bb_mid:    { color: 'rgba(139,92,246,0.25)', lineWidth: 1, lineStyle: LineStyle.Dotted },
+  ema_9:     { color: '#f59e0b', lineWidth: 1 },
+  ema_21:    { color: '#3b82f6', lineWidth: 1 },
+  ema_50:    { color: '#10b981', lineWidth: 1 },
+  ema_200:   { color: '#ef4444', lineWidth: 2 },
 }
 
 export default function PriceChart({ candles, indicators, overlays = [] }) {
   const containerRef = useRef()
   const chartRef     = useRef()
-  const seriesRef    = useRef({})
-  const [hoveredPrice, setHoveredPrice] = useState(null)
+  const [hovered, setHovered] = useState(null)
 
   useEffect(() => {
-    if (!containerRef.current || !candles?.length) return
+    const el = containerRef.current
+    if (!el || !candles?.length) return
 
-    const chart = createChart(containerRef.current, {
-      ...THEME,
-      width:  containerRef.current.clientWidth,
-      height: containerRef.current.clientHeight,
-    })
+    const chart = createChart(el, makeTheme(el))
     chartRef.current = chart
 
-    // Main candlestick series
-    const candleSeries = chart.addCandlestickSeries({
-      upColor:          '#10b981',
-      downColor:        '#ef4444',
-      borderUpColor:    '#10b981',
-      borderDownColor:  '#ef4444',
-      wickUpColor:      '#10b981',
-      wickDownColor:    '#ef4444',
+    // Candlestick series
+    const candle = chart.addSeries(CandlestickSeries, {
+      upColor:         '#10b981',
+      downColor:       '#ef4444',
+      borderUpColor:   '#10b981',
+      borderDownColor: '#ef4444',
+      wickUpColor:     '#10b981',
+      wickDownColor:   '#ef4444',
     })
-    candleSeries.setData(candles)
-    seriesRef.current.candle = candleSeries
+    candle.setData(candles)
 
-    // Volume histogram
-    const volSeries = chart.addHistogramSeries({
-      priceFormat:    { type: 'volume' },
-      priceScaleId:   'vol',
-      color:          '#1a2740',
-      scaleMargins:   { top: 0.8, bottom: 0 },
+    // Volume
+    const vol = chart.addSeries(HistogramSeries, {
+      priceFormat:  { type: 'volume' },
+      priceScaleId: 'vol',
     })
-    const volData = candles.map(c => ({
+    chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } })
+    vol.setData(candles.map(c => ({
       time:  c.time,
       value: c.volume,
-      color: c.close >= c.open ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)',
-    }))
-    volSeries.setData(volData)
-    seriesRef.current.volume = volSeries
+      color: c.close >= c.open ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)',
+    })))
 
-    // Overlay series
-    const overlayDefs = {
-      bb_upper:  { color: 'rgba(139,92,246,0.5)', lineWidth: 1, lineStyle: LineStyle.Dashed,  title: 'BB Upper' },
-      bb_lower:  { color: 'rgba(139,92,246,0.5)', lineWidth: 1, lineStyle: LineStyle.Dashed,  title: 'BB Lower' },
-      bb_mid:    { color: 'rgba(139,92,246,0.3)', lineWidth: 1, lineStyle: LineStyle.Dotted,  title: 'BB Mid'   },
-      ema_9:     { color: '#f59e0b',              lineWidth: 1, title: 'EMA 9'    },
-      ema_21:    { color: '#3b82f6',              lineWidth: 1, title: 'EMA 21'   },
-      ema_50:    { color: '#10b981',              lineWidth: 1, title: 'EMA 50'   },
-      ema_200:   { color: '#ef4444',              lineWidth: 2, title: 'EMA 200'  },
-    }
-
+    // Overlays
     if (indicators) {
       overlays.forEach(key => {
-        const def  = overlayDefs[key]
-        const data = indicators[key]
-        if (!def || !data?.length) return
-        const s = chart.addLineSeries({ color: def.color, lineWidth: def.lineWidth ?? 1, lineStyle: def.lineStyle ?? LineStyle.Solid, title: def.title })
+        const style = OVERLAY_STYLES[key]
+        const data  = indicators[key]
+        if (!style || !data?.length) return
+        const s = chart.addSeries(LineSeries, style)
         s.setData(data)
-        seriesRef.current[key] = s
       })
     }
 
-    // Crosshair price display
-    chart.subscribeCrosshairMove(param => {
-      if (param.time) {
-        const price = param.seriesData.get(candleSeries)
-        if (price) setHoveredPrice({ ...price, time: param.time })
-      } else {
-        setHoveredPrice(null)
-      }
+    // Crosshair hover
+    chart.subscribeCrosshairMove(p => {
+      const price = p?.seriesData?.get(candle)
+      setHovered(price ? { ...price, time: p.time } : null)
     })
 
-    // Resize observer
+    // Resize
     const ro = new ResizeObserver(() => {
-      chart.applyOptions({ width: containerRef.current?.clientWidth })
+      if (el) chart.applyOptions({ width: el.clientWidth, height: el.clientHeight })
     })
-    ro.observe(containerRef.current)
-
+    ro.observe(el)
     chart.timeScale().fitContent()
 
     return () => { ro.disconnect(); chart.remove() }
   }, [candles, JSON.stringify(overlays)])
 
-  const p = hoveredPrice
-  const isUp = p ? p.close >= p.open : null
+  const h  = hovered
+  const up = h ? h.close >= h.open : null
 
   return (
-    <div className="relative h-full">
-      {p && (
-        <div className="absolute top-2 left-3 z-10 flex items-center gap-3 text-xs ticker-value">
-          <span className={isUp ? 'text-positive' : 'text-negative'}>O {p.open?.toFixed(2)}</span>
-          <span className={isUp ? 'text-positive' : 'text-negative'}>H {p.high?.toFixed(2)}</span>
-          <span className={isUp ? 'text-positive' : 'text-negative'}>L {p.low?.toFixed(2)}</span>
-          <span className={isUp ? 'text-positive' : 'text-negative'}>C {p.close?.toFixed(2)}</span>
+    <div className="relative w-full h-full">
+      {h && (
+        <div className="absolute top-3 left-3 z-10 flex items-center gap-3 ticker-value text-[11px] bg-bg/80 backdrop-blur px-2 py-1 rounded-lg border border-border">
+          {['open','high','low','close'].map(k => (
+            <span key={k} className={up ? 'text-positive' : 'text-negative'}>
+              {k[0].toUpperCase()} {h[k]?.toFixed(2)}
+            </span>
+          ))}
         </div>
       )}
       <div ref={containerRef} className="w-full h-full" />

@@ -1,0 +1,1689 @@
+{
+  "version": "1",
+  "updated_at": "2026-03-27T00:20:02.492829+00:00",
+  "experiments": [
+    {
+      "experiment_id": "b9406185-7ab6-46e5-9930-0c09769b7d4a",
+      "name": "mlp_aapl_20260327_0012",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 3,
+        "batch_size": 64,
+        "patience": 3,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.5588,
+        "precision": 0.5588,
+        "recall": 1.0,
+        "f1": 0.717,
+        "auc": 0.6018
+      },
+      "backtest": {
+        "cumulative_return": 0.04371688302712928,
+        "annualised_return": 0.37319010039688205,
+        "hit_rate": 0.0,
+        "max_drawdown": -0.027348236301470253,
+        "sharpe": 2.7084446299305407,
+        "trade_count": 0,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-5\\test_returns_pipeline_result0\\checkpoints\\b9406185-7ab6-46e5-9930-0c09769b7d4a.pt",
+      "started_at": "2026-03-27T00:12:46.796339+00:00",
+      "finished_at": "2026-03-27T00:12:48.731205+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "80ef71d0-f97e-4df8-b2a9-2cc5b4e20c50",
+      "name": "mlp_aapl_20260327_0012",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 3,
+        "batch_size": 64,
+        "patience": 3,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.5588,
+        "precision": 0.5588,
+        "recall": 1.0,
+        "f1": 0.717,
+        "auc": 0.5088
+      },
+      "backtest": {
+        "cumulative_return": 0.04371688302712928,
+        "annualised_return": 0.37319010039688205,
+        "hit_rate": 0.0,
+        "max_drawdown": -0.027348236301470253,
+        "sharpe": 2.7084446299305407,
+        "trade_count": 0,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-5\\test_experiment_id_set0\\checkpoints\\80ef71d0-f97e-4df8-b2a9-2cc5b4e20c50.pt",
+      "started_at": "2026-03-27T00:12:48.782291+00:00",
+      "finished_at": "2026-03-27T00:12:48.816286+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "00c1c300-045b-4be9-980a-ec1dadb5a352",
+      "name": "mlp_aapl_20260327_0012",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 3,
+        "batch_size": 64,
+        "patience": 3,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.4412,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "auc": 0.4561
+      },
+      "backtest": {
+        "cumulative_return": 0.0,
+        "annualised_return": 0.0,
+        "hit_rate": 0.0,
+        "max_drawdown": 0.0,
+        "sharpe": 0.0,
+        "trade_count": 0,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-5\\test_metrics_present0\\checkpoints\\00c1c300-045b-4be9-980a-ec1dadb5a352.pt",
+      "started_at": "2026-03-27T00:12:48.865277+00:00",
+      "finished_at": "2026-03-27T00:12:48.896787+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "9335c77a-fbc9-444c-bf89-e839d032d07a",
+      "name": "mlp_aapl_20260327_0012",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 3,
+        "batch_size": 64,
+        "patience": 3,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.5294,
+        "precision": 0.5652,
+        "recall": 0.6842,
+        "f1": 0.619,
+        "auc": 0.5386
+      },
+      "backtest": {
+        "cumulative_return": 0.018429774562329637,
+        "annualised_return": 0.144941655697149,
+        "hit_rate": 1.0,
+        "max_drawdown": -0.0200193685268368,
+        "sharpe": 1.1361794347101264,
+        "trade_count": 1,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-5\\test_metrics_in_range0\\checkpoints\\9335c77a-fbc9-444c-bf89-e839d032d07a.pt",
+      "started_at": "2026-03-27T00:12:48.947779+00:00",
+      "finished_at": "2026-03-27T00:12:48.985289+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "d8649174-d0c0-4c03-9b7b-82ef56dd2353",
+      "name": "mlp_aapl_20260327_0012",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 3,
+        "batch_size": 64,
+        "patience": 3,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.4412,
+        "precision": 0.5,
+        "recall": 0.0526,
+        "f1": 0.0952,
+        "auc": 0.4298
+      },
+      "backtest": {
+        "cumulative_return": 0.0,
+        "annualised_return": 0.0,
+        "hit_rate": 0.0,
+        "max_drawdown": 0.0,
+        "sharpe": 0.0,
+        "trade_count": 0,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-5\\test_checkpoint_file_created0\\checkpoints\\d8649174-d0c0-4c03-9b7b-82ef56dd2353.pt",
+      "started_at": "2026-03-27T00:12:49.034233+00:00",
+      "finished_at": "2026-03-27T00:12:49.064227+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "0ed1e70a-5cec-4bf0-9a39-9bdcb6f3fbcf",
+      "name": "mlp_aapl_20260327_0012",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 3,
+        "batch_size": 64,
+        "patience": 3,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.5882,
+        "precision": 0.5926,
+        "recall": 0.8421,
+        "f1": 0.6957,
+        "auc": 0.5789
+      },
+      "backtest": {
+        "cumulative_return": 0.03169098015526339,
+        "annualised_return": 0.2601629193498738,
+        "hit_rate": 0.6666666666666666,
+        "max_drawdown": -0.031060407566675698,
+        "sharpe": 1.938478820847257,
+        "trade_count": 3,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-5\\test_scaler_file_created0\\checkpoints\\0ed1e70a-5cec-4bf0-9a39-9bdcb6f3fbcf.pt",
+      "started_at": "2026-03-27T00:12:49.112734+00:00",
+      "finished_at": "2026-03-27T00:12:49.149730+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "50d88220-b341-4ac1-bc41-81ded5433738",
+      "name": "mlp_aapl_20260327_0012",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 3,
+        "batch_size": 64,
+        "patience": 3,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.4706,
+        "precision": 1.0,
+        "recall": 0.0526,
+        "f1": 0.1,
+        "auc": 0.5614
+      },
+      "backtest": {
+        "cumulative_return": 0.0,
+        "annualised_return": 0.0,
+        "hit_rate": 0.0,
+        "max_drawdown": 0.0,
+        "sharpe": 0.0,
+        "trade_count": 0,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-5\\test_scaler_file_is_valid_json0\\checkpoints\\50d88220-b341-4ac1-bc41-81ded5433738.pt",
+      "started_at": "2026-03-27T00:12:49.203247+00:00",
+      "finished_at": "2026-03-27T00:12:49.239241+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "8b408ea3-6674-4903-81ec-e98588d5ba06",
+      "name": "mlp_aapl_20260327_0012",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 3,
+        "batch_size": 64,
+        "patience": 3,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.4412,
+        "precision": 0.5,
+        "recall": 0.2105,
+        "f1": 0.2963,
+        "auc": 0.5632
+      },
+      "backtest": {
+        "cumulative_return": 0.003866653885643778,
+        "annualised_return": 0.029016472021987205,
+        "hit_rate": 0.5,
+        "max_drawdown": -0.013858621511794372,
+        "sharpe": 0.3948814593757806,
+        "trade_count": 4,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-5\\test_backtest_summary_present0\\checkpoints\\8b408ea3-6674-4903-81ec-e98588d5ba06.pt",
+      "started_at": "2026-03-27T00:12:49.289747+00:00",
+      "finished_at": "2026-03-27T00:12:49.319741+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "d4db0dd8-fb2c-4997-82fa-e89aa1cb5d5e",
+      "name": "mlp_aapl_20260327_0012",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 2,
+        "batch_size": 64,
+        "patience": 2,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.5588,
+        "precision": 0.5588,
+        "recall": 1.0,
+        "f1": 0.717,
+        "auc": 0.4561
+      },
+      "backtest": {
+        "cumulative_return": 0.04371688302712928,
+        "annualised_return": 0.37319010039688205,
+        "hit_rate": 0.0,
+        "max_drawdown": -0.027348236301470253,
+        "sharpe": 2.7084446299305407,
+        "trade_count": 0,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-5\\test_experiment_recorded_in_re0\\checkpoints\\d4db0dd8-fb2c-4997-82fa-e89aa1cb5d5e.pt",
+      "started_at": "2026-03-27T00:12:49.368742+00:00",
+      "finished_at": "2026-03-27T00:12:49.394249+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "ebf60227-e77e-4728-a2cf-ee45e2605cbc",
+      "name": "mlp_aapl_20260327_0012",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 3,
+        "batch_size": 64,
+        "patience": 3,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.4412,
+        "precision": 0.5,
+        "recall": 0.0526,
+        "f1": 0.0952,
+        "auc": 0.486
+      },
+      "backtest": {
+        "cumulative_return": 0.014729539332647645,
+        "annualised_return": 0.11446633062567013,
+        "hit_rate": 1.0,
+        "max_drawdown": -0.001,
+        "sharpe": 2.993628367677897,
+        "trade_count": 1,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-5\\test_promotion_reasons_populat0\\checkpoints\\ebf60227-e77e-4728-a2cf-ee45e2605cbc.pt",
+      "started_at": "2026-03-27T00:12:49.506748+00:00",
+      "finished_at": "2026-03-27T00:12:49.542739+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "2695ea83-7d84-4b88-8f73-83ee5fe1aa19",
+      "name": "mlp_aapl_20260327_0012",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 3,
+        "batch_size": 64,
+        "patience": 3,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.4706,
+        "precision": 1.0,
+        "recall": 0.0526,
+        "f1": 0.1,
+        "auc": 0.486
+      },
+      "backtest": {
+        "cumulative_return": 0.0,
+        "annualised_return": 0.0,
+        "hit_rate": 0.0,
+        "max_drawdown": 0.0,
+        "sharpe": 0.0,
+        "trade_count": 0,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-5\\test_promotion_recommendation_0\\checkpoints\\2695ea83-7d84-4b88-8f73-83ee5fe1aa19.pt",
+      "started_at": "2026-03-27T00:12:49.591246+00:00",
+      "finished_at": "2026-03-27T00:12:49.626237+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "07ec87b1-4d75-492b-ae0c-9dd21d922d3a",
+      "name": "mlp_aapl_20260327_0012",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 2,
+        "batch_size": 64,
+        "patience": 2,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.5294,
+        "precision": 0.5556,
+        "recall": 0.7895,
+        "f1": 0.6522,
+        "auc": 0.4228
+      },
+      "backtest": {
+        "cumulative_return": 0.024585017052567437,
+        "annualised_return": 0.19723471016412342,
+        "hit_rate": 0.4,
+        "max_drawdown": -0.020623365667659165,
+        "sharpe": 1.852142387035219,
+        "trade_count": 5,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-5\\test_tags_passed_to_registry0\\checkpoints\\07ec87b1-4d75-492b-ae0c-9dd21d922d3a.pt",
+      "started_at": "2026-03-27T00:12:49.685744+00:00",
+      "finished_at": "2026-03-27T00:12:49.712739+00:00",
+      "tags": [
+        "test_tag",
+        "baseline"
+      ]
+    },
+    {
+      "experiment_id": "181390b3-8146-4af0-9989-d94cdb7bddc3",
+      "name": "mlp_aapl_20260327_0012",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          32,
+          16
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 3,
+        "batch_size": 64,
+        "patience": 3,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.5,
+        "precision": 0.6,
+        "recall": 0.3158,
+        "f1": 0.4138,
+        "auc": 0.514
+      },
+      "backtest": {
+        "cumulative_return": 0.0037483482528752887,
+        "annualised_return": 0.028117990258114123,
+        "hit_rate": 0.3333333333333333,
+        "max_drawdown": -0.016733422713835717,
+        "sharpe": 0.4186366844555302,
+        "trade_count": 3,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-5\\test_custom_hidden_sizes0\\checkpoints\\181390b3-8146-4af0-9989-d94cdb7bddc3.pt",
+      "started_at": "2026-03-27T00:12:49.779739+00:00",
+      "finished_at": "2026-03-27T00:12:49.815245+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "63d37425-313b-453f-a913-d48c521811d9",
+      "name": "mlp_aapl_20260327_0018",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 3,
+        "batch_size": 64,
+        "patience": 3,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.4412,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "auc": 0.5035
+      },
+      "backtest": {
+        "cumulative_return": 0.0,
+        "annualised_return": 0.0,
+        "hit_rate": 0.0,
+        "max_drawdown": 0.0,
+        "sharpe": 0.0,
+        "trade_count": 0,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-6\\test_returns_pipeline_result0\\checkpoints\\63d37425-313b-453f-a913-d48c521811d9.pt",
+      "started_at": "2026-03-27T00:18:33.619057+00:00",
+      "finished_at": "2026-03-27T00:18:36.089389+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "22bfdce1-c7f0-42b4-ae8f-5d08c983680c",
+      "name": "mlp_aapl_20260327_0018",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 3,
+        "batch_size": 64,
+        "patience": 3,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.5,
+        "precision": 0.6,
+        "recall": 0.3158,
+        "f1": 0.4138,
+        "auc": 0.5368
+      },
+      "backtest": {
+        "cumulative_return": -0.0014419222934679565,
+        "annualised_return": -0.010637914107972102,
+        "hit_rate": 0.5,
+        "max_drawdown": -0.015553644208819424,
+        "sharpe": -0.23558250339566153,
+        "trade_count": 4,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-6\\test_experiment_id_set0\\checkpoints\\22bfdce1-c7f0-42b4-ae8f-5d08c983680c.pt",
+      "started_at": "2026-03-27T00:18:36.181881+00:00",
+      "finished_at": "2026-03-27T00:18:36.230386+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "be504bf3-0de9-45b2-8e8d-fe1e0ee90a4b",
+      "name": "mlp_aapl_20260327_0018",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 3,
+        "batch_size": 64,
+        "patience": 3,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.4706,
+        "precision": 0.6,
+        "recall": 0.1579,
+        "f1": 0.25,
+        "auc": 0.6105
+      },
+      "backtest": {
+        "cumulative_return": -0.004657650853130524,
+        "annualised_return": -0.034010251414120285,
+        "hit_rate": 0.0,
+        "max_drawdown": -0.01623513170056573,
+        "sharpe": -0.5718331255999963,
+        "trade_count": 2,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-6\\test_metrics_present0\\checkpoints\\be504bf3-0de9-45b2-8e8d-fe1e0ee90a4b.pt",
+      "started_at": "2026-03-27T00:18:36.341889+00:00",
+      "finished_at": "2026-03-27T00:18:36.396883+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "2429d796-ba32-4110-8eb5-cf6767d4f4e1",
+      "name": "mlp_aapl_20260327_0018",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 3,
+        "batch_size": 64,
+        "patience": 3,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.5588,
+        "precision": 0.5588,
+        "recall": 1.0,
+        "f1": 0.717,
+        "auc": 0.4614
+      },
+      "backtest": {
+        "cumulative_return": 0.04371688302712928,
+        "annualised_return": 0.37319010039688205,
+        "hit_rate": 0.0,
+        "max_drawdown": -0.027348236301470253,
+        "sharpe": 2.7084446299305407,
+        "trade_count": 0,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-6\\test_metrics_in_range0\\checkpoints\\2429d796-ba32-4110-8eb5-cf6767d4f4e1.pt",
+      "started_at": "2026-03-27T00:18:36.498885+00:00",
+      "finished_at": "2026-03-27T00:18:36.552880+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "7ef93d0b-004e-4393-940f-22e9690deca5",
+      "name": "mlp_aapl_20260327_0018",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 3,
+        "batch_size": 64,
+        "patience": 3,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.5294,
+        "precision": 0.5517,
+        "recall": 0.8421,
+        "f1": 0.6667,
+        "auc": 0.5316
+      },
+      "backtest": {
+        "cumulative_return": 0.03543602975888005,
+        "annualised_return": 0.29446448765819233,
+        "hit_rate": 0.75,
+        "max_drawdown": -0.013858621511794462,
+        "sharpe": 2.5897464725148485,
+        "trade_count": 4,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-6\\test_checkpoint_file_created0\\checkpoints\\7ef93d0b-004e-4393-940f-22e9690deca5.pt",
+      "started_at": "2026-03-27T00:18:36.656374+00:00",
+      "finished_at": "2026-03-27T00:18:36.707887+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "0141ce2d-a488-4e67-bdae-1500e98bfa5a",
+      "name": "mlp_aapl_20260327_0018",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 3,
+        "batch_size": 64,
+        "patience": 3,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.3529,
+        "precision": 0.3636,
+        "recall": 0.2105,
+        "f1": 0.2667,
+        "auc": 0.4737
+      },
+      "backtest": {
+        "cumulative_return": -0.01467279227760887,
+        "annualised_return": -0.1037689381546073,
+        "hit_rate": 0.5,
+        "max_drawdown": -0.02099934915830978,
+        "sharpe": -1.7011712942707458,
+        "trade_count": 2,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-6\\test_scaler_file_created0\\checkpoints\\0141ce2d-a488-4e67-bdae-1500e98bfa5a.pt",
+      "started_at": "2026-03-27T00:18:36.815377+00:00",
+      "finished_at": "2026-03-27T00:18:36.865368+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "ee5aa4e9-c5c7-4e83-a7e9-78916619eecd",
+      "name": "mlp_aapl_20260327_0018",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 3,
+        "batch_size": 64,
+        "patience": 3,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.4118,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "auc": 0.5474
+      },
+      "backtest": {
+        "cumulative_return": -0.005895544422102605,
+        "annualised_return": -0.04287923433718166,
+        "hit_rate": 0.0,
+        "max_drawdown": -0.005895544422102648,
+        "sharpe": -3.1679997605743027,
+        "trade_count": 1,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-6\\test_scaler_file_is_valid_json0\\checkpoints\\ee5aa4e9-c5c7-4e83-a7e9-78916619eecd.pt",
+      "started_at": "2026-03-27T00:18:36.969865+00:00",
+      "finished_at": "2026-03-27T00:18:37.029365+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "3bf0382f-6853-4735-aba2-7feabcecc7a5",
+      "name": "mlp_aapl_20260327_0018",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 3,
+        "batch_size": 64,
+        "patience": 3,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.5,
+        "precision": 0.5333,
+        "recall": 0.8421,
+        "f1": 0.6531,
+        "auc": 0.6123
+      },
+      "backtest": {
+        "cumulative_return": 0.0571260783686387,
+        "annualised_return": 0.5094615871181143,
+        "hit_rate": 1.0,
+        "max_drawdown": -0.017027394996758777,
+        "sharpe": 4.104502414422226,
+        "trade_count": 3,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-6\\test_backtest_summary_present0\\checkpoints\\3bf0382f-6853-4735-aba2-7feabcecc7a5.pt",
+      "started_at": "2026-03-27T00:18:37.136889+00:00",
+      "finished_at": "2026-03-27T00:18:37.196883+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "c3e92643-79d4-4fe9-b39e-204e6ee6dd3c",
+      "name": "mlp_aapl_20260327_0018",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 2,
+        "batch_size": 64,
+        "patience": 2,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.4706,
+        "precision": 0.5385,
+        "recall": 0.3684,
+        "f1": 0.4375,
+        "auc": 0.5404
+      },
+      "backtest": {
+        "cumulative_return": -0.011269941929764493,
+        "annualised_return": -0.08057280267260558,
+        "hit_rate": 0.6666666666666666,
+        "max_drawdown": -0.020850281585882757,
+        "sharpe": -1.7814218957542418,
+        "trade_count": 6,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-6\\test_experiment_recorded_in_re0\\checkpoints\\c3e92643-79d4-4fe9-b39e-204e6ee6dd3c.pt",
+      "started_at": "2026-03-27T00:18:37.299887+00:00",
+      "finished_at": "2026-03-27T00:18:37.346878+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "634ac6a2-311f-4e00-9cb2-b4db860822d2",
+      "name": "mlp_aapl_20260327_0019",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 2,
+        "batch_size": 64,
+        "patience": 2,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.5588,
+        "precision": 0.5588,
+        "recall": 1.0,
+        "f1": 0.717,
+        "auc": 0.614
+      },
+      "backtest": {
+        "cumulative_return": 0.04371688302712928,
+        "annualised_return": 0.37319010039688205,
+        "hit_rate": 0.0,
+        "max_drawdown": -0.027348236301470253,
+        "sharpe": 2.7084446299305407,
+        "trade_count": 0,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-7\\test_experiment_recorded_in_re0\\checkpoints\\634ac6a2-311f-4e00-9cb2-b4db860822d2.pt",
+      "started_at": "2026-03-27T00:19:45.344908+00:00",
+      "finished_at": "2026-03-27T00:19:47.743237+00:00",
+      "tags": []
+    },
+    {
+      "experiment_id": "a5c8c6f5-7ce1-4a16-a3ba-8de75421acc1",
+      "name": "mlp_aapl_20260327_0020",
+      "model_type": "mlp",
+      "status": "completed",
+      "hyperparams": {
+        "input_size": 56,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "dropout": 0.2,
+        "activation": "relu",
+        "batch_norm": true,
+        "lr": 0.001,
+        "weight_decay": 0.0001,
+        "epochs": 2,
+        "batch_size": 64,
+        "patience": 2,
+        "threshold": 0.5
+      },
+      "dataset_info": {
+        "symbol": "AAPL",
+        "period": "3y",
+        "n_bars": 300,
+        "n_features": 56,
+        "n_train": 156,
+        "n_val": 33,
+        "n_test": 34,
+        "target_horizon": 1,
+        "feature_cols": [
+          "ret_1d",
+          "ret_5d",
+          "ret_10d",
+          "ret_21d",
+          "ret_63d",
+          "log_ret_1d",
+          "log_ret_5d",
+          "cum_ret_21d",
+          "cum_ret_63d",
+          "realized_vol_5d"
+        ]
+      },
+      "metrics": {
+        "accuracy": 0.4412,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "auc": 0.5263
+      },
+      "backtest": {
+        "cumulative_return": 0.0,
+        "annualised_return": 0.0,
+        "hit_rate": 0.0,
+        "max_drawdown": 0.0,
+        "sharpe": 0.0,
+        "trade_count": 0,
+        "benchmark_return": 0.030342456912623605,
+        "period_start": "2026-02-10T00:00:00+00:00",
+        "period_end": "2026-03-27T00:00:00+00:00",
+        "extra": {
+          "n_bars": 34
+        }
+      },
+      "notes": "",
+      "checkpoint_path": "C:\\Users\\asher\\AppData\\Local\\Temp\\pytest-of-asher\\pytest-8\\test_experiment_recorded_in_re0\\checkpoints\\a5c8c6f5-7ce1-4a16-a3ba-8de75421acc1.pt",
+      "started_at": "2026-03-27T00:20:00.852713+00:00",
+      "finished_at": "2026-03-27T00:20:02.481833+00:00",
+      "tags": []
+    }
+  ]
+}

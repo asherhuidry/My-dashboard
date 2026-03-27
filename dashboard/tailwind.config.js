@@ -4,8 +4,8 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg:       { DEFAULT: "#080b14", secondary: "#0d1117", card: "#0f1624", hover: "#141d2e" },
-        border:   { DEFAULT: "#1a2740", bright: "#243b5e" },
+        bg:       { DEFAULT: "#080b14", secondary: "#0d1117", card: "#0f1624", hover: "#141d2e", deep: "#050913" },
+        border:   { DEFAULT: "#1a2740", bright: "#2d4a6b" },
         accent:   { DEFAULT: "#3b82f6", dim: "#1d4ed8", glow: "#60a5fa" },
         positive: { DEFAULT: "#10b981", dim: "#059669", glow: "#34d399" },
         negative: { DEFAULT: "#ef4444", dim: "#dc2626", glow: "#f87171" },
