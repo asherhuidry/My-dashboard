@@ -224,3 +224,29 @@ def _static_knowledge_graph() -> dict:
     ]
 
     return {"nodes": nodes, "edges": edges, "source": "static"}
+
+
+@router.get("/graph/stats")
+def get_graph_stats() -> dict:
+    """Return live node/edge counts from the Neo4j market graph.
+
+    Falls back to zeros if Neo4j is unavailable.
+    """
+    try:
+        from db.neo4j.client import get_graph_stats as neo4j_stats
+        stats = neo4j_stats()
+        return {
+            "nodes": stats.get("nodes", {}),
+            "edges": stats.get("edges", {}),
+            "total_nodes": stats.get("total_nodes", 0),
+            "total_edges": stats.get("total_edges", 0),
+            "source": "neo4j",
+        }
+    except Exception:
+        return {
+            "nodes": {},
+            "edges": {},
+            "total_nodes": 0,
+            "total_edges": 0,
+            "source": "unavailable",
+        }

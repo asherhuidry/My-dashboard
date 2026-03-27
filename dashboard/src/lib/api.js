@@ -56,7 +56,7 @@ export const fetchMacroDashboard  = ()    =>
   api.get('/api/intelligence/macro-dashboard').then(r => r.data)
 
 export const fetchGraphStats      = ()    =>
-  api.get('/api/intelligence/graph-stats').then(r => r.data)
+  api.get('/api/graph/stats').then(r => r.data)
 
 export const postSemanticSearch   = (query, symbol=null, limit=10) =>
   api.post('/api/intelligence/semantic-search', {

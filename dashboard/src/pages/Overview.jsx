@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { fetchDbStats, fetchHealth, fetchPrices, fetchSourceSummary, fetchDiscoverySummary } from '../lib/api'
+import { fetchDbStats, fetchHealth, fetchPrices, fetchSourceSummary, fetchDiscoverySummary, fetchGraphStats } from '../lib/api'
 import { fmt, pctColor } from '../lib/utils'
 import SearchBar from '../components/UI/SearchBar'
 import Header from '../components/Layout/Header'
@@ -127,12 +127,15 @@ function ServiceRow({ label, ok, latency }) {
   )
 }
 
-function GraphStatusVisual({ srcSummary, discSummary }) {
+function GraphStatusVisual({ srcSummary, discSummary, graphStats }) {
   const sources = srcSummary?.total ?? 0
   const validated = srcSummary?.by_status?.validated ?? 0
   const discoveries = discSummary?.total_discoveries ?? 0
   const strong = discSummary?.by_strength?.strong ?? 0
-  const uniqueSeries = discSummary?.unique_series ?? 0
+  const graphNodes = graphStats?.total_nodes ?? 0
+  const graphEdges = graphStats?.total_edges ?? 0
+  const assetNodes = graphStats?.nodes?.Asset ?? 0
+  const macroNodes = graphStats?.nodes?.MacroIndicator ?? 0
   const runs = discSummary?.run_count ?? 0
 
   const stages = [
@@ -141,19 +144,20 @@ function GraphStatusVisual({ srcSummary, discSummary }) {
       { k: 'Validated',  v: validated },
       { k: 'Categories', v: Object.keys(srcSummary?.by_category ?? {}).length },
     ]},
-    { label: 'Nodes',       color: '#10b981', items: [
-      { k: 'Unique series', v: uniqueSeries },
-      { k: 'Asset classes', v: (srcSummary?.by_category ? Object.keys(srcSummary.by_category).length : 0) },
+    { label: 'Graph Nodes', color: '#10b981', items: [
+      { k: 'Total nodes',   v: graphNodes },
+      { k: 'Assets',        v: assetNodes },
+      { k: 'Macro',         v: macroNodes },
     ]},
-    { label: 'Edges',       color: '#8b5cf6', items: [
+    { label: 'Graph Edges', color: '#8b5cf6', items: [
+      { k: 'Neo4j edges',  v: graphEdges },
       { k: 'Discoveries',  v: discoveries },
       { k: 'Strong',       v: strong },
-      { k: 'Runs',         v: runs },
     ]},
     { label: 'Research',    color: '#f59e0b', items: [
-      { k: 'Analyzer',    v: 'live' },
-      { k: 'Screener',    v: 'live' },
-      { k: 'AI Research',  v: 'live' },
+      { k: 'Discovery runs', v: runs },
+      { k: 'Analyzer',       v: 'live' },
+      { k: 'Screener',       v: 'live' },
     ]},
   ]
 
@@ -200,6 +204,7 @@ export default function Overview() {
   const { data: health } = useQuery({ queryKey: ['health'],   queryFn: fetchHealth,  staleTime: 30_000 })
   const { data: srcSummary }  = useQuery({ queryKey: ['sources-summary'],     queryFn: fetchSourceSummary,    staleTime: 60_000 })
   const { data: discSummary } = useQuery({ queryKey: ['discoveries-summary'], queryFn: fetchDiscoverySummary, staleTime: 60_000 })
+  const { data: graphStats }  = useQuery({ queryKey: ['graph-stats'],         queryFn: fetchGraphStats,       staleTime: 60_000 })
 
   const priceRows  = stats?.tables?.find(t => t.table === 'prices')?.rows ?? 0
   const macroRows  = stats?.tables?.find(t => t.table === 'macro_events')?.rows ?? 0
@@ -272,7 +277,7 @@ export default function Overview() {
         {/* ── Middle row: data flow + service health ─────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2">
-            <GraphStatusVisual srcSummary={srcSummary} discSummary={discSummary} />
+            <GraphStatusVisual srcSummary={srcSummary} discSummary={discSummary} graphStats={graphStats} />
           </div>
 
           {/* Service health */}

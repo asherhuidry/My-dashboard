@@ -417,3 +417,161 @@ def run_read_query(cypher: str, params: dict[str, Any] | None = None) -> list[di
     with session() as s:
         result = s.run(cypher, **(params or {}))
         return [dict(r) for r in result]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Batch merge helpers (used by graph materializer for efficiency)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def batch_merge_assets(nodes: list[dict[str, Any]]) -> int:
+    """Batch-merge Asset nodes using UNWIND for efficiency.
+
+    Each dict must have keys: ticker, name, asset_class.
+    Optional keys: sector, exchange.
+
+    Args:
+        nodes: List of asset property dicts.
+
+    Returns:
+        Number of nodes merged.
+    """
+    if not nodes:
+        return 0
+    cypher = """
+        UNWIND $nodes AS n
+        MERGE (a:Asset {ticker: n.ticker})
+        SET a.name        = n.name,
+            a.asset_class = n.asset_class,
+            a.sector      = n.sector,
+            a.exchange     = n.exchange
+    """
+    with session() as s:
+        s.run(cypher, nodes=nodes)
+    logger.info("neo4j_batch_assets_merged", count=len(nodes))
+    return len(nodes)
+
+
+def batch_merge_macro_indicators(nodes: list[dict[str, Any]]) -> int:
+    """Batch-merge MacroIndicator nodes using UNWIND.
+
+    Each dict must have keys: series_id, name, source, frequency.
+
+    Args:
+        nodes: List of macro indicator property dicts.
+
+    Returns:
+        Number of nodes merged.
+    """
+    if not nodes:
+        return 0
+    cypher = """
+        UNWIND $nodes AS n
+        MERGE (m:MacroIndicator {series_id: n.series_id})
+        SET m.name      = n.name,
+            m.source    = n.source,
+            m.frequency = n.frequency
+    """
+    with session() as s:
+        s.run(cypher, nodes=nodes)
+    logger.info("neo4j_batch_macro_merged", count=len(nodes))
+    return len(nodes)
+
+
+def batch_merge_edges(edges: list[dict[str, Any]]) -> int:
+    """Batch-merge relationship edges using UNWIND.
+
+    Each dict must have keys:
+        source_id, source_label, target_id, target_label, rel_type,
+        pearson_r, lag_days, strength.
+    Optional: granger_p, mutual_info, regime, relationship_type.
+
+    Supports cross-label edges (Asset↔Asset, Asset↔MacroIndicator, etc).
+
+    Args:
+        edges: List of edge property dicts.
+
+    Returns:
+        Number of edges merged.
+    """
+    if not edges:
+        return 0
+
+    # Group by label pair + rel_type to build correct MATCH clauses.
+    # Most common cases: Asset↔Asset, MacroIndicator↔Asset
+    groups: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+    for e in edges:
+        key = (e["source_label"], e["target_label"], e["rel_type"])
+        groups.setdefault(key, []).append(e)
+
+    total = 0
+    with session() as s:
+        for (src_label, tgt_label, rel_type), batch in groups.items():
+            src_key = "ticker" if src_label == "Asset" else "series_id"
+            tgt_key = "ticker" if tgt_label == "Asset" else "series_id"
+
+            cypher = f"""
+                UNWIND $edges AS e
+                MATCH (a:{src_label} {{{src_key}: e.source_id}})
+                MATCH (b:{tgt_label} {{{tgt_key}: e.target_id}})
+                MERGE (a)-[r:{rel_type}]->(b)
+                SET r.pearson_r         = e.pearson_r,
+                    r.lag_days          = e.lag_days,
+                    r.granger_p         = e.granger_p,
+                    r.mutual_info       = e.mutual_info,
+                    r.strength          = e.strength,
+                    r.regime            = e.regime,
+                    r.relationship_type = e.relationship_type,
+                    r.updated_at        = datetime()
+            """
+            s.run(cypher, edges=batch)
+            total += len(batch)
+            logger.info("neo4j_batch_edges_merged",
+                        src_label=src_label, tgt_label=tgt_label,
+                        rel_type=rel_type, count=len(batch))
+
+    return total
+
+
+def get_graph_stats() -> dict[str, Any]:
+    """Return counts of nodes by label and edges by type.
+
+    Returns:
+        Dict with 'nodes' (label→count) and 'edges' (type→count) and 'total_nodes', 'total_edges'.
+    """
+    node_cypher = """
+        CALL db.labels() YIELD label
+        CALL {
+            WITH label
+            MATCH (n)
+            WHERE label IN labels(n)
+            RETURN count(n) AS cnt
+        }
+        RETURN label, cnt
+    """
+    edge_cypher = """
+        CALL db.relationshipTypes() YIELD relationshipType AS rtype
+        CALL {
+            WITH rtype
+            MATCH ()-[r]->()
+            WHERE type(r) = rtype
+            RETURN count(r) AS cnt
+        }
+        RETURN rtype, cnt
+    """
+    nodes: dict[str, int] = {}
+    edges: dict[str, int] = {}
+    try:
+        with session() as s:
+            for record in s.run(node_cypher):
+                nodes[record["label"]] = record["cnt"]
+            for record in s.run(edge_cypher):
+                edges[record["rtype"]] = record["cnt"]
+    except Exception as exc:
+        logger.warning("neo4j_stats_failed", error=str(exc))
+
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "total_nodes": sum(nodes.values()),
+        "total_edges": sum(edges.values()),
+    }
