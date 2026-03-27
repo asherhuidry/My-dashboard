@@ -28,6 +28,18 @@ from ml.evidence.templates import (
     relationship_claim,
     source_usefulness_claim,
 )
+from ml.evidence.bridge import (
+    ClaimBundle,
+    SaveResult,
+    bridge_comparison,
+    bridge_wf_comparison,
+    claims_from_comparison,
+    claims_from_wf_comparison,
+    evidence_from_fold_result,
+    evidence_from_pipeline_result,
+    evidence_from_wf_result,
+    save_evidence_bundle,
+)
 
 __all__ = [
     # schema
@@ -45,4 +57,15 @@ __all__ = [
     "source_usefulness_claim",
     "feature_usefulness_claim",
     "relationship_claim",
+    # bridge
+    "ClaimBundle",
+    "SaveResult",
+    "evidence_from_fold_result",
+    "evidence_from_wf_result",
+    "evidence_from_pipeline_result",
+    "claims_from_comparison",
+    "claims_from_wf_comparison",
+    "save_evidence_bundle",
+    "bridge_wf_comparison",
+    "bridge_comparison",
 ]
