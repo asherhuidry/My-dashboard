@@ -13,6 +13,8 @@ export default function ForceGraph({ nodes, edges, onNodeClick, title }) {
   }
 
   const paintNode = useCallback((node, ctx, globalScale) => {
+    if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) return
+
     const r     = (node.val ?? 6) / globalScale * 1.5 + 3
     const label = node.label ?? node.id
     const col   = node.color ?? '#3b82f6'
@@ -47,6 +49,8 @@ export default function ForceGraph({ nodes, edges, onNodeClick, title }) {
   }, [])
 
   const paintLink = useCallback((link, ctx, globalScale) => {
+    if (!Number.isFinite(link.source.x) || !Number.isFinite(link.target.x)) return
+
     const col   = link.color ?? '#1a2740'
     const width = (link.width ?? 1) / globalScale
     ctx.beginPath()
