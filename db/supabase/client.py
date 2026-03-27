@@ -410,6 +410,31 @@ def save_discoveries(records: list[DiscoveryRecord]) -> list[dict[str, Any]]:
     return result.data
 
 
+def get_structural_snapshots(limit: int = 10) -> list[dict[str, Any]]:
+    """Fetch recent structural analysis snapshots from evolution_log.
+
+    Queries for entries with agent_id='graph_analyzer' and
+    action='structural_snapshot', ordered most-recent first.
+
+    Args:
+        limit: Maximum number of snapshots to return.
+
+    Returns:
+        List of evolution_log row dicts, newest first.
+    """
+    client = get_client()
+    result = (
+        client.table("evolution_log")
+        .select("*")
+        .eq("agent_id", "graph_analyzer")
+        .eq("action", "structural_snapshot")
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return result.data
+
+
 def get_discoveries(
     *,
     series: str | None = None,

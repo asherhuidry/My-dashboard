@@ -525,6 +525,11 @@ def run(symbols: list[str] | None = None) -> list[CorrelationFinding]:
     # Failures here never affect discovery persistence.
     graph_result = _materialize_graph(run_id)
 
+    # Snapshot structural analysis for week-over-week tracking.
+    # Runs read-only Cypher queries over the freshly materialized graph
+    # and persists metrics + diff to evolution_log.
+    structural_snapshot = _snapshot_graph_structure(run_id)
+
     # Log summary to evolution audit trail
     try:
         from db.supabase.client import log_evolution, EvolutionLogEntry
@@ -540,6 +545,11 @@ def run(symbols: list[str] | None = None) -> list[CorrelationFinding]:
         }
         if graph_result:
             after_state["graph"] = graph_result
+        if structural_snapshot:
+            after_state["structural_snapshot"] = {
+                k: structural_snapshot[k]
+                for k in ("metrics", "diff") if k in structural_snapshot
+            }
         log_evolution(EvolutionLogEntry(
             agent_id    = AGENT_ID,
             action      = "hunt_correlations",
@@ -661,6 +671,42 @@ def _materialize_graph(run_id: str | None) -> dict | None:
         return result
     except Exception as exc:
         log.warning("Graph materialization failed (discoveries are safe): %s", exc)
+        return None
+
+
+def _snapshot_graph_structure(run_id: str | None) -> dict | None:
+    """Run structural analysis and persist a snapshot for time-series tracking.
+
+    Called automatically after graph materialization.  Runs read-only
+    Cypher queries over the freshly materialized graph, computes summary
+    metrics, diffs against the previous snapshot, and persists everything
+    to evolution_log.
+
+    Args:
+        run_id: The discovery run_id, or None if materialization was skipped.
+
+    Returns:
+        Snapshot dict with metrics and optional diff, or None if skipped/failed.
+    """
+    if run_id is None:
+        log.info("Skipping structural snapshot — no graph materialized")
+        return None
+
+    try:
+        from data.agents.graph_analyzer import snapshot_graph_structure
+        log.info("Taking structural snapshot of market graph...")
+        snapshot = snapshot_graph_structure(run_id=run_id)
+        metrics = snapshot.get("metrics", {})
+        log.info(
+            "Structural snapshot: %d assets, %d bridges, top hub=%s (degree %d)",
+            metrics.get("exposure_asset_count", 0),
+            metrics.get("bridge_count", 0),
+            metrics.get("centrality_top_node", "?"),
+            metrics.get("centrality_top_degree", 0),
+        )
+        return snapshot
+    except Exception as exc:
+        log.warning("Structural snapshot failed (graph is safe): %s", exc)
         return None
 
 

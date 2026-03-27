@@ -207,11 +207,12 @@ class TestCorrelationHunterPersistence:
         defaults.update(kwargs)
         return CorrelationFinding(**defaults)
 
+    @patch("data.agents.correlation_hunter._snapshot_graph_structure", return_value=None)
     @patch("data.agents.correlation_hunter._materialize_graph")
     @patch("data.agents.correlation_hunter._persist_discoveries")
     @patch("data.agents.correlation_hunter._run_sensitivity_pass", return_value=[])
     @patch("data.agents.correlation_hunter.hunt_correlations")
-    def test_run_calls_persist(self, mock_hunt, mock_sens, mock_persist, mock_mat):
+    def test_run_calls_persist(self, mock_hunt, mock_sens, mock_persist, mock_mat, mock_snap):
         """run() should call _persist_discoveries with the findings."""
         from data.agents.correlation_hunter import run
 
@@ -295,11 +296,12 @@ class TestDiscoveryGraphLoop:
         defaults.update(kwargs)
         return CorrelationFinding(**defaults)
 
+    @patch("data.agents.correlation_hunter._snapshot_graph_structure", return_value=None)
     @patch("data.agents.correlation_hunter._materialize_graph")
     @patch("data.agents.correlation_hunter._persist_discoveries")
     @patch("data.agents.correlation_hunter._run_sensitivity_pass", return_value=[])
     @patch("data.agents.correlation_hunter.hunt_correlations")
-    def test_run_calls_materialize_after_persist(self, mock_hunt, mock_sens, mock_persist, mock_mat):
+    def test_run_calls_materialize_after_persist(self, mock_hunt, mock_sens, mock_persist, mock_mat, mock_snap):
         """run() should call _materialize_graph after successful persistence."""
         from data.agents.correlation_hunter import run
 
@@ -315,11 +317,12 @@ class TestDiscoveryGraphLoop:
         mock_persist.assert_called_once_with(findings)
         mock_mat.assert_called_once_with("run-id-abc")
 
+    @patch("data.agents.correlation_hunter._snapshot_graph_structure", return_value=None)
     @patch("data.agents.correlation_hunter._materialize_graph")
     @patch("data.agents.correlation_hunter._persist_discoveries")
     @patch("data.agents.correlation_hunter._run_sensitivity_pass", return_value=[])
     @patch("data.agents.correlation_hunter.hunt_correlations")
-    def test_run_skips_materialize_when_persist_fails(self, mock_hunt, mock_sens, mock_persist, mock_mat):
+    def test_run_skips_materialize_when_persist_fails(self, mock_hunt, mock_sens, mock_persist, mock_mat, mock_snap):
         """run() should pass None to _materialize_graph when persistence fails."""
         from data.agents.correlation_hunter import run
 
@@ -363,11 +366,12 @@ class TestDiscoveryGraphLoop:
         result = _materialize_graph("run-id-xyz")
         assert result is None
 
+    @patch("data.agents.correlation_hunter._snapshot_graph_structure", return_value=None)
     @patch("data.agents.correlation_hunter._materialize_graph")
     @patch("data.agents.correlation_hunter._persist_discoveries")
     @patch("data.agents.correlation_hunter._run_sensitivity_pass", return_value=[])
     @patch("data.agents.correlation_hunter.hunt_correlations")
-    def test_graph_stats_included_in_evolution_log(self, mock_hunt, mock_sens, mock_persist, mock_mat):
+    def test_graph_stats_included_in_evolution_log(self, mock_hunt, mock_sens, mock_persist, mock_mat, mock_snap):
         """run() should include graph stats in the evolution log when materialization succeeds."""
         from data.agents.correlation_hunter import run
 
