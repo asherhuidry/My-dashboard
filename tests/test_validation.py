@@ -40,14 +40,15 @@ def _make_ohlcv(
     """Build a minimal valid OHLCV DataFrame."""
     end   = datetime.now(tz=timezone.utc) - timedelta(days=days_back)
     dates = pd.date_range(end=end, periods=n, freq="B")
+    m     = len(dates)
     base  = 100.0
     data  = {
         "date":   dates,
-        "open":   [base + i * 0.1 for i in range(n)],
-        "high":   [base + i * 0.1 + 1.0 for i in range(n)],
-        "low":    [base + i * 0.1 - 0.5 for i in range(n)],
-        "close":  [base + i * 0.1 + 0.3 for i in range(n)],
-        "volume": [1_000_000 + i * 1000 for i in range(n)],
+        "open":   [base + i * 0.1 for i in range(m)],
+        "high":   [base + i * 0.1 + 1.0 for i in range(m)],
+        "low":    [base + i * 0.1 - 0.5 for i in range(m)],
+        "close":  [base + i * 0.1 + 0.3 for i in range(m)],
+        "volume": [1_000_000 + i * 1000 for i in range(m)],
     }
     df = pd.DataFrame(data)
     if include_bad_price:
@@ -60,7 +61,7 @@ def _make_ohlcv(
 def _make_timeseries(n: int = 20, days_back: int = 0) -> pd.DataFrame:
     end   = datetime.now(tz=timezone.utc) - timedelta(days=days_back)
     dates = pd.date_range(end=end, periods=n, freq="B")
-    return pd.DataFrame({"date": dates, "value": range(n)})
+    return pd.DataFrame({"date": dates, "value": range(len(dates))})
 
 
 # ── Individual checks ─────────────────────────────────────────────────────────
