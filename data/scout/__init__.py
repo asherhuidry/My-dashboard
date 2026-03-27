@@ -56,6 +56,14 @@ from data.scout.probe_registry import (
 )
 from data.scout.probe_evidence import evidence_from_probe
 from data.scout.probe_catalog import ProbeCatalogResult, probe_catalog
+from data.scout.sampler import (
+    SampleQuality,
+    SampleResult,
+    sample_source,
+    sample_and_validate,
+    sample_sampled_sources,
+)
+from data.scout.pipeline import ScoutRunResult, run_scout_pipeline
 
 __all__ = [
     # schema
@@ -88,4 +96,13 @@ __all__ = [
     # probe catalog
     "ProbeCatalogResult",
     "probe_catalog",
+    # sampler
+    "SampleQuality",
+    "SampleResult",
+    "sample_source",
+    "sample_and_validate",
+    "sample_sampled_sources",
+    # pipeline
+    "ScoutRunResult",
+    "run_scout_pipeline",
 ]
