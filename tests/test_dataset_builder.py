@@ -129,8 +129,8 @@ class TestComputeVersion:
     def test_different_horizon_different_version(self):
         assert self._version(target_horizon=1) != self._version(target_horizon=5)
 
-    def test_feature_order_does_not_matter(self):
-        assert self._version(feature_cols=["a", "b"]) == self._version(feature_cols=["b", "a"])
+    def test_feature_order_changes_version(self):
+        assert self._version(feature_cols=["a", "b"]) != self._version(feature_cols=["b", "a"])
 
     def test_seq_len_affects_version(self):
         assert self._version(seq_len=None) != self._version(seq_len=20)

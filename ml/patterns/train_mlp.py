@@ -50,6 +50,7 @@ from ml.patterns.mlp import (
     save_checkpoint,
     train,
 )
+from ml.data.dataset_builder import DatasetMeta
 from ml.registry.experiment_registry import ExperimentRegistry
 
 log = logging.getLogger(__name__)
@@ -237,6 +238,8 @@ def run_pipeline(
     df:             pd.DataFrame | None = None,
     registry:       ExperimentRegistry | None = None,
     checkpoint_dir: Path | None = None,
+    dataset:        dict | None = None,
+    dataset_meta:   DatasetMeta | None = None,
 ) -> PipelineResult:
     """Run the full MLP training → evaluation → backtest pipeline.
 
@@ -256,6 +259,13 @@ def run_pipeline(
         df:                 Pre-built OHLCV DataFrame (skips yfinance download).
                             Must have lowercase columns + DatetimeIndex.
         registry:           Optional pre-built ExperimentRegistry (for testing).
+        dataset:            Pre-assembled dataset dict from ``assemble_dataset``.
+                            When provided, skips the internal ``build_dataset`` call so
+                            the MLP trains on the exact same arrays as other models in a
+                            comparison run.
+        dataset_meta:       ``DatasetMeta`` paired with ``dataset``.  When provided,
+                            its ``to_dataset_info()`` (including ``dataset_version``) is
+                            stored in the registry record instead of a bare info dict.
 
     Returns:
         PipelineResult with all artifacts and a promotion recommendation.
@@ -267,10 +277,10 @@ def run_pipeline(
     ckpt_dir = Path(checkpoint_dir) if checkpoint_dir else CHECKPOINT_DIR
 
     # ── 1. Download / prepare data ────────────────────────────────────────
-    if df is None:
-        df = fetch_price_df(symbol, period=period)
-
-    dataset = build_dataset(df, target_horizon=target_horizon)
+    if dataset is None:
+        if df is None:
+            df = fetch_price_df(symbol, period=period)
+        dataset = build_dataset(df, target_horizon=target_horizon)
 
     if dataset["n_test"] < 20:
         raise ValueError(
@@ -296,21 +306,25 @@ def run_pipeline(
         patience     = patience,
         batch_size   = batch_size,
     )
-    exp = reg.create(
-        name         = f"mlp_{symbol.lower()}_{datetime.now(tz=timezone.utc).strftime('%Y%m%d_%H%M')}",
-        model_type   = "mlp",
-        hyperparams  = cfg.to_dict(),
-        dataset_info = {
+    if dataset_meta is not None:
+        ds_info = dataset_meta.to_dataset_info()
+    else:
+        ds_info = {
             "symbol":         symbol,
             "period":         period,
-            "n_bars":         len(df),
+            "n_bars":         len(df) if df is not None else dataset["n_train"] + dataset["n_val"] + dataset["n_test"],
             "n_features":     n_features,
             "n_train":        dataset["n_train"],
             "n_val":          dataset["n_val"],
             "n_test":         dataset["n_test"],
             "target_horizon": target_horizon,
             "feature_cols":   dataset["feature_cols"][:10],  # first 10 for brevity
-        },
+        }
+    exp = reg.create(
+        name         = f"mlp_{symbol.lower()}_{datetime.now(tz=timezone.utc).strftime('%Y%m%d_%H%M')}",
+        model_type   = "mlp",
+        hyperparams  = cfg.to_dict(),
+        dataset_info = ds_info,
         notes = notes,
         tags  = tags or [],
     )

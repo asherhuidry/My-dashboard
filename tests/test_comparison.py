@@ -346,6 +346,32 @@ class TestCompareDatasetVersion:
         results = compare_dataset_version(reg, "v1")
         assert all(isinstance(r, ExperimentRecord) for r in results)
 
+    def test_lstm_found_by_comparison_group_version(self, tmp_path):
+        """LSTM experiments with comparison_group_version must be returned when
+        searching by the flat dataset version."""
+        reg = ExperimentRegistry(path=tmp_path / "exp.json")
+        # Simulate LSTM registry entry: dataset_version = seq hash, but
+        # comparison_group_version = flat hash
+        exp = reg.create(
+            name         = "lstm_run",
+            model_type   = "lstm",
+            hyperparams  = {},
+            dataset_info = {
+                "dataset_version":        "seq_hash_abcdef",
+                "comparison_group_version": "flat_hash_123456",
+                "symbol":                 "AAPL",
+            },
+        )
+        reg.finish(exp.experiment_id, metrics={"accuracy": 0.57})
+
+        # Searching by flat version should return the LSTM experiment
+        results = compare_dataset_version(reg, "flat_hash_123456")
+        assert any(r.experiment_id == exp.experiment_id for r in results)
+
+        # Searching by seq version should also still work
+        results_seq = compare_dataset_version(reg, "seq_hash_abcdef")
+        assert any(r.experiment_id == exp.experiment_id for r in results_seq)
+
 
 # ── top_n ─────────────────────────────────────────────────────────────────────
 
@@ -601,3 +627,24 @@ class TestRunComparison:
         )
         exp = reg.get(result.results[0].experiment_id)
         assert exp.dataset_info.get("dataset_version") == result.dataset_version
+
+    def test_mlp_and_baseline_share_registry_dataset_version(self, tmp_path):
+        """Both models must store the same dataset_version in the registry record."""
+        reg = ExperimentRegistry(path=tmp_path / "exp.json")
+        result = run_comparison(
+            symbol         = "AAPL",
+            df             = _make_ohlcv(),
+            models         = ["baseline", "mlp"],
+            registry       = reg,
+            checkpoint_dir = tmp_path / "ckpts",
+            epochs         = 3,
+            patience       = 3,
+        )
+        registry_versions = set()
+        for mr in result.results:
+            exp = reg.get(mr.experiment_id)
+            registry_versions.add(exp.dataset_info.get("dataset_version"))
+        assert len(registry_versions) == 1, (
+            f"Expected one shared dataset_version, got: {registry_versions}"
+        )
+        assert result.dataset_version in registry_versions

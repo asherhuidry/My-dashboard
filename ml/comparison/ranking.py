@@ -209,6 +209,7 @@ def rank_experiments(
         records = [
             r for r in records
             if r.dataset_info.get("dataset_version") == dataset_version
+            or r.dataset_info.get("comparison_group_version") == dataset_version
         ]
 
     if require_backtest:
@@ -357,9 +358,17 @@ def compare_dataset_version(
     identical features, target, and split fractions (and their results are
     directly comparable).
 
+    LSTM experiments use a sequence dataset whose ``dataset_version`` hash
+    differs from the flat dataset version.  They are included when their
+    ``comparison_group_version`` matches the requested ``dataset_version``.
+    This key is written by ``run_lstm_pipeline`` when a flat ``DatasetMeta``
+    is provided to the comparison runner.
+
     Args:
         registry:        ``ExperimentRegistry`` to query.
-        dataset_version: 12-character hex hash from ``DatasetMeta``.
+        dataset_version: 12-character hex hash from ``DatasetMeta`` — either
+                         the flat version (finds baseline, MLP, and LSTM) or
+                         the sequence version (finds only LSTM).
 
     Returns:
         All matching records sorted most-recent-first.
@@ -367,6 +376,7 @@ def compare_dataset_version(
     return [
         r for r in registry.all()
         if r.dataset_info.get("dataset_version") == dataset_version
+        or r.dataset_info.get("comparison_group_version") == dataset_version
     ]
 
 

@@ -328,6 +328,8 @@ def _run_model(
         return _mlp_run(
             symbol         = symbol,
             df             = df,
+            dataset        = data,
+            dataset_meta   = meta,
             registry       = reg,
             checkpoint_dir = checkpoint_dir,
             epochs         = epochs,

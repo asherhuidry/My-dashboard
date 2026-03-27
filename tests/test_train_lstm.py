@@ -234,4 +234,4 @@ class TestRunLstmPipeline:
             config         = self._cfg(),
         )
         exp = reg.get(result.experiment_id)
-        assert exp.dataset_info.get("flat_dataset_version") == flat_meta.dataset_version
+        assert exp.dataset_info.get("comparison_group_version") == flat_meta.dataset_version

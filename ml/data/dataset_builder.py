@@ -148,7 +148,7 @@ def _compute_version(
     canonical = json.dumps(
         {
             "symbol":           symbol.upper(),
-            "feature_cols":     sorted(feature_cols),
+            "feature_cols":     list(feature_cols),
             "target_horizon":   target_horizon,
             "n_rows":           n_rows,
             "time_range_start": time_range_start[:19],   # drop sub-second precision

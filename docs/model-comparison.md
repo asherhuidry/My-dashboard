@@ -9,15 +9,19 @@ on the same dataset version and surfacing clear promotion recommendations.
 OHLCV data
     │
     ▼
-assemble_dataset()  ─────────────────────────────────────────────┐
-    │                                                             │
-    ├── run_baseline_pipeline()  →  PipelineResult (logistic)    │  same
-    ├── run_pipeline()           →  PipelineResult (MLP)         │  dataset_version
-    └── run_lstm_pipeline()      →  PipelineResult (LSTM)        │
-                                                                  │
-    All results flow into ────────────────────────────────────────┘
+assemble_dataset()  ─────────────────────────────────────────────────────────────┐
+    │                                                                             │
+    ├── run_baseline_pipeline()  →  PipelineResult (logistic)    dataset_version │ flat
+    ├── run_pipeline()           →  PipelineResult (MLP)         dataset_version │ version
+    └── run_lstm_pipeline()      →  PipelineResult (LSTM)        seq dataset_version
+                                                                  comparison_group_version ← same flat version
+    All results flow into ────────────────────────────────────────────────────────┘
     ComparisonResult (ranked by composite score)
 ```
+
+Baseline and MLP store the flat `dataset_version` directly.  The LSTM stores its
+own sequence-dataset version under `dataset_version` and records the flat version
+under `comparison_group_version` so all three models are groupable by the flat key.
 
 ## Running a comparison
 
@@ -133,7 +137,7 @@ The LSTM path (`ml/patterns/train_lstm.py`) is complete and registry-integrated:
 - 70 / 15 / 15 split (train / val for early stopping / held-out test)
 - Same `PipelineResult` output as MLP and baseline
 - Backtest run on the held-out test set close prices
-- Cross-references flat dataset version in `dataset_info.flat_dataset_version`
+- Cross-references flat dataset version in `dataset_info.comparison_group_version`
 
 **Limitation:** the LSTM test set uses the same close price window as MLP and
 baseline only if `seq_len` is small relative to the data length.  Longer
@@ -155,7 +159,7 @@ result.print_summary()
 ranked = rank_experiments(reg, dataset_version=result.dataset_version)
 
 # 3. Explain the winner's promotion status
-winner_record = reg.get(result.winner_experiment_id)   # or by model_type lookup
+winner_record = reg.get(result.ranked()[0].experiment_id)
 detail = explain_promotion(winner_record)
 print(detail["summary"])
 

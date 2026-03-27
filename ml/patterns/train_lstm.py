@@ -321,7 +321,7 @@ def run_lstm_pipeline(
     # models sharing the same OHLCV window are linked in the registry
     ds_info = seq_meta.to_dataset_info()
     if dataset_meta is not None:
-        ds_info["flat_dataset_version"] = dataset_meta.dataset_version
+        ds_info["comparison_group_version"] = dataset_meta.dataset_version
 
     # ── 2. Create experiment record ───────────────────────────────────────
     exp = reg.create(
