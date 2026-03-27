@@ -55,6 +55,7 @@ from data.scout.probe_registry import (
     probe_and_register,
 )
 from data.scout.probe_evidence import evidence_from_probe
+from data.scout.probe_catalog import ProbeCatalogResult, probe_catalog
 
 __all__ = [
     # schema
@@ -84,4 +85,7 @@ __all__ = [
     "probe_and_register",
     # probe evidence
     "evidence_from_probe",
+    # probe catalog
+    "ProbeCatalogResult",
+    "probe_catalog",
 ]

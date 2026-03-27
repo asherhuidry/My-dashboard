@@ -160,3 +160,69 @@ Convenience properties: `redirected` (bool), `auth_required` (bool).
 
 DNS failures, TLS errors, connection refusals, and timeouts all produce
 `ok=False` with an informative `error` string.
+
+---
+
+## Batch probing — `probe_catalog`
+
+`data/scout/probe_catalog.py` wraps the single-source probe in a batch runner
+that evaluates an entire candidate catalog and returns aggregate statistics.
+
+### Basic usage
+
+```python
+from data.registry.source_registry import SourceRegistry
+from data.scout.schema import CANDIDATE_CATALOG, normalize_source_candidate
+from data.scout.probe_catalog import probe_catalog
+
+registry   = SourceRegistry()
+candidates = [normalize_source_candidate(r) for r in CANDIDATE_CATALOG]
+result     = probe_catalog(candidates, registry)
+
+print(result.summary())
+for row in result.summary_table():
+    print(row)
+```
+
+### Parallel probing
+
+```python
+result = probe_catalog(candidates, registry, concurrency=4)
+```
+
+Concurrency is capped at 8 (`_MAX_SAFE_CONCURRENCY`).  All registry writes
+are serialised via a `threading.Lock` so the JSON file is never corrupted.
+
+### Passing pre-computed scores
+
+```python
+from data.scout.scorer import score_source_candidate
+
+scores = {normalize_source_candidate(r).source_id: score_source_candidate(
+              normalize_source_candidate(r))
+          for r in CANDIDATE_CATALOG}
+result = probe_catalog(candidates, registry, scores=scores)
+```
+
+### Serialization
+
+```python
+import json
+print(json.dumps(result.to_dict(), indent=2))
+```
+
+### ProbeCatalogResult fields
+
+| Field | Type | Description |
+|---|---|---|
+| `total` | int | Number of candidates submitted |
+| `attempted` | int | Number for which a probe was run |
+| `reachable` | int | Number with `probe.ok == True` |
+| `failed` | int | Number with `probe.ok == False` |
+| `skipped` | int | Number skipped due to unexpected errors |
+| `avg_latency_ms` | float \| None | Mean latency across reachable HTTP probes; `None` if all SDK |
+| `per_source` | list[ProbeRegistryResult] | Per-source outcomes |
+| `success_rate` | float (property) | `reachable / attempted`, 0–1 |
+
+Convenience methods: `get(source_id)`, `summary()`, `summary_table()`,
+`to_dict()`.
