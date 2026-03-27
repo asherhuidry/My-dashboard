@@ -9,8 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import (
     health, prices, analysis, search, db_stats, evolution,
-    graph, chat, screener, ws, predict, backtest, research, data_sources,
-    intelligence, neural, experiments, discoveries, sources,
+    graph, graph_analysis, chat, screener, ws, predict, backtest, research,
+    data_sources, intelligence, neural, experiments, discoveries, sources,
 )
 
 log = logging.getLogger(__name__)
@@ -35,7 +35,8 @@ app.include_router(prices.router,    prefix="/api")
 app.include_router(analysis.router,  prefix="/api")
 app.include_router(db_stats.router,  prefix="/api")
 app.include_router(evolution.router, prefix="/api")
-app.include_router(graph.router,     prefix="/api")
+app.include_router(graph.router,          prefix="/api")
+app.include_router(graph_analysis.router, prefix="/api")
 app.include_router(chat.router,      prefix="/api")
 app.include_router(screener.router,  prefix="/api")
 app.include_router(predict.router,   prefix="/api")
