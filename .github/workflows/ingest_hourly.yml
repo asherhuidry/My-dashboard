@@ -20,9 +20,8 @@ jobs:
           python-version: '3.11'
           cache: pip
 
-      - name: Install dependencies (no torch)
-        run: |
-          pip install yfinance supabase fredapi alpha_vantage structlog python-dotenv requests
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
       - name: Run ingestion
         env:

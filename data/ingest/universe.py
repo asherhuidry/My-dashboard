@@ -38,6 +38,17 @@ CRYPTO_YF: list[str] = [
     "UNI-USD", "ICP-USD", "FIL-USD",  "APT-USD",  "ARB-USD",
 ]
 
+# ── Crypto: CoinGecko format — (coin_id, ticker) tuples ─────────────────────
+CRYPTO: list[tuple[str, str]] = [
+    ("bitcoin",      "BTC"),  ("ethereum",     "ETH"),  ("binancecoin",  "BNB"),
+    ("solana",       "SOL"),  ("ripple",       "XRP"),  ("cardano",      "ADA"),
+    ("avalanche-2",  "AVAX"), ("dogecoin",     "DOGE"), ("polkadot",     "DOT"),
+    ("matic-network","MATIC"),("chainlink",    "LINK"), ("cosmos",       "ATOM"),
+    ("litecoin",     "LTC"),  ("bitcoin-cash", "BCH"),  ("near",         "NEAR"),
+    ("uniswap",      "UNI"),  ("internet-computer","ICP"),("filecoin",   "FIL"),
+    ("aptos",        "APT"),  ("arbitrum",     "ARB"),
+]
+
 # ── ETFs: sector, factor, volatility, rates, international ────────────────────
 ETFS: list[str] = [
     # Broad market

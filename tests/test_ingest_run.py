@@ -14,6 +14,36 @@ import pytest
 from data.ingest.ecb_connector import ECB_SERIES, ECBFetchResult, ECBSeriesDef
 
 
+# ── Universe / import regression tests ─────────────────────────────────────
+
+class TestUniverseImports:
+    def test_run_module_imports_cleanly(self):
+        """run.py must import without errors — guards the CRYPTO name fix."""
+        from data.ingest import run  # noqa: F401
+
+    def test_crypto_is_coingecko_format(self):
+        """CRYPTO must be list[tuple[str, str]] for coingecko_connector.run()."""
+        from data.ingest.universe import CRYPTO
+        assert isinstance(CRYPTO, list)
+        assert len(CRYPTO) >= 10
+        for item in CRYPTO:
+            assert isinstance(item, tuple), f"Expected tuple, got {type(item)}"
+            assert len(item) == 2
+            coin_id, ticker = item
+            assert isinstance(coin_id, str) and isinstance(ticker, str)
+
+    def test_crypto_yf_still_exists(self):
+        """CRYPTO_YF (Yahoo Finance format) must still be available."""
+        from data.ingest.universe import CRYPTO_YF
+        assert isinstance(CRYPTO_YF, list)
+        assert all(isinstance(t, str) for t in CRYPTO_YF)
+
+    def test_crypto_and_crypto_yf_same_count(self):
+        """Both crypto lists should cover the same number of assets."""
+        from data.ingest.universe import CRYPTO, CRYPTO_YF
+        assert len(CRYPTO) == len(CRYPTO_YF)
+
+
 # ── ECB connector integration tests ─────────────────────────────────────────
 
 class TestECBInRunAll:
