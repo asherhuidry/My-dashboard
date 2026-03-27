@@ -56,6 +56,7 @@ Usage::
 """
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -163,10 +164,10 @@ class ComparisonResult:
 
     def print_summary(self) -> None:
         """Print a human-readable comparison summary to stdout."""
-        sep = "═" * 68
+        sep = "=" * 68
         print(sep)
         print(
-            f"  Comparison  ·  {self.symbol}  ·  "
+            f"  Comparison  |  {self.symbol}  |  "
             f"{self.generated_at[:19].replace('T', ' ')} UTC"
         )
         print(f"  Dataset version : {self.dataset_version}")
@@ -179,7 +180,7 @@ class ComparisonResult:
         print(f"  Winner          : {self.winner or '(none)'}")
         print(sep)
         for r in self.ranked():
-            promo = "✓ RECOMMENDED" if r.promotion_recommended else "✗ not recommended"
+            promo = "[OK] RECOMMENDED" if r.promotion_recommended else "[--] not recommended"
             print(
                 f"  #{r.rank}  {r.model_type:10s}  "
                 f"score={r.composite_score:.4f}  {promo}"
@@ -194,8 +195,33 @@ class ComparisonResult:
                 f"sharpe={bt.get('sharpe', 0):.2f}  "
                 f"ret={bt.get('cumulative_return', 0)*100:+.1f}%"
             )
-            print(f"       exp_id={r.experiment_id[:8]}…")
+            print(f"       exp_id={r.experiment_id[:8]}...")
         print(sep)
+
+    def save_summary(self, output_dir: "Path | str | None" = None) -> Path:
+        """Write the comparison result to a JSON file.
+
+        The file is named ``comparison_{symbol}_{timestamp}.json`` and written
+        to ``output_dir`` (default: ``ml/outputs/comparison/``).
+
+        Args:
+            output_dir: Directory to write the summary file.  Created if it
+                        does not exist.
+
+        Returns:
+            Resolved ``Path`` of the written file.
+        """
+        if output_dir is None:
+            repo_root = Path(__file__).parent.parent.parent
+            output_dir = repo_root / "ml" / "outputs" / "comparison"
+        out_dir = Path(output_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        ts = self.generated_at[:19].replace(":", "").replace("T", "_")
+        fname = f"comparison_{self.symbol}_{ts}.json"
+        path = out_dir / fname
+        path.write_text(json.dumps(self.to_dict(), indent=2), encoding="utf-8")
+        log.info("ComparisonResult saved: %s", path)
+        return path
 
 
 # ── Walk-forward comparison result ────────────────────────────────────────────
@@ -251,10 +277,10 @@ class WalkForwardComparisonResult:
 
     def print_summary(self) -> None:
         """Print a human-readable walk-forward comparison summary."""
-        sep = "═" * 72
+        sep = "=" * 72
         print(sep)
         print(
-            f"  Walk-Forward Comparison  ·  {self.symbol}  ·  "
+            f"  Walk-Forward Comparison  |  {self.symbol}  |  "
             f"{self.generated_at[:19].replace('T', ' ')} UTC"
         )
         cfg = self.wf_config
@@ -267,25 +293,54 @@ class WalkForwardComparisonResult:
         for model_type, agg in self.ranked():
             promo = self.promotions.get(model_type)
             promo_str = (
-                "✓ RECOMMENDED" if (promo and promo.overall_recommended)
-                else "✗ not recommended"
+                "[OK] RECOMMENDED" if (promo and promo.overall_recommended)
+                else "[--] not recommended"
             )
             print(
                 f"  {model_type:10s}  "
-                f"score={agg.mean_composite_score:.4f}±{agg.std_composite_score:.4f}"
+                f"score={agg.mean_composite_score:.4f}+/-{agg.std_composite_score:.4f}"
                 f"  {promo_str}"
             )
             print(
-                f"    acc={agg.mean_accuracy:.3f}±{agg.std_accuracy:.3f}  "
-                f"auc={agg.mean_auc:.3f}±{agg.std_auc:.3f}  "
-                f"hit={agg.mean_hit_rate:.3f}±{agg.std_hit_rate:.3f}  "
-                f"sharpe={agg.mean_sharpe:.2f}±{agg.std_sharpe:.2f}"
+                f"    acc={agg.mean_accuracy:.3f}+/-{agg.std_accuracy:.3f}  "
+                f"auc={agg.mean_auc:.3f}+/-{agg.std_auc:.3f}  "
+                f"hit={agg.mean_hit_rate:.3f}+/-{agg.std_hit_rate:.3f}  "
+                f"sharpe={agg.mean_sharpe:.2f}+/-{agg.std_sharpe:.2f}"
             )
             print(
                 f"    beat_bm={agg.n_folds_beat_benchmark}/{agg.n_folds}  "
                 f"fold_promo={agg.n_folds_promo_recommended}/{agg.n_folds}"
             )
         print(sep)
+
+    def save_summary(self, output_dir: "Path | str | None" = None) -> Path:
+        """Write the walk-forward comparison result to a JSON file.
+
+        The file is named ``wf_{symbol}_{timestamp}.json`` and written to
+        ``output_dir`` (default: ``ml/outputs/walk_forward/`` relative to the
+        repository root, or the current working directory if that path does not
+        exist).
+
+        Args:
+            output_dir: Directory to write the summary file.  Created if it
+                        does not exist.  Falls back to
+                        ``ml/outputs/walk_forward/`` when ``None``.
+
+        Returns:
+            Resolved ``Path`` of the written file.
+        """
+        if output_dir is None:
+            # Locate repository root relative to this file's location.
+            repo_root = Path(__file__).parent.parent.parent
+            output_dir = repo_root / "ml" / "outputs" / "walk_forward"
+        out_dir = Path(output_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        ts = self.generated_at[:19].replace(":", "").replace("T", "_")
+        fname = f"wf_{self.symbol}_{ts}.json"
+        path = out_dir / fname
+        path.write_text(json.dumps(self.to_dict(), indent=2), encoding="utf-8")
+        log.info("WalkForwardComparisonResult saved: %s", path)
+        return path
 
 
 # ── Runner ────────────────────────────────────────────────────────────────────

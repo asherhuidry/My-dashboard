@@ -43,6 +43,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import json
+
 import numpy as np
 import pandas as pd
 
@@ -140,6 +142,48 @@ class WalkForwardResult:
             "config":        self.config.to_dict(),
             "generated_at":  self.generated_at,
         }
+
+    def print_summary(self) -> None:
+        """Print a concise per-fold table for quick CLI inspection."""
+        sep = "=" * 68
+        print(sep)
+        print(
+            f"  WF Result  |  {self.symbol}  |  {self.model_type}  |  "
+            f"{self.n_folds_run}/{self.n_folds_total} folds"
+        )
+        print(sep)
+        hdr = f"  {'fold':>4}  {'train_rows':>10}  {'acc':>6}  {'auc':>6}  {'hit':>6}  {'sharpe':>7}  {'cum_ret':>8}  promo"
+        print(hdr)
+        for fr in self.fold_results:
+            m  = fr.metrics
+            bt = fr.backtest_summary
+            n_tr = fr.fold_spec.n_train + fr.fold_spec.n_val
+            promo = "[OK]" if fr.promotion_recommended else "[ ]"
+            print(
+                f"  {fr.fold_idx:>4}  {n_tr:>10}  "
+                f"{m.get('accuracy', 0):>6.3f}  "
+                f"{m.get('auc', 0):>6.3f}  "
+                f"{bt.get('hit_rate', 0):>6.3f}  "
+                f"{bt.get('sharpe', 0):>7.2f}  "
+                f"{bt.get('cumulative_return', 0)*100:>+7.1f}%  {promo}"
+            )
+        print(sep)
+
+    def save_summary(self, path: "Path | str") -> "Path":
+        """Write the full result to a JSON file and return the resolved path.
+
+        Args:
+            path: File path to write.  Parent directories are created if they
+                  do not already exist.
+
+        Returns:
+            Resolved ``Path`` of the written file.
+        """
+        out = Path(path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(self.to_dict(), indent=2), encoding="utf-8")
+        log.info("WalkForwardResult saved: %s", out)
+        return out
 
 
 # ── Per-fold training helpers ─────────────────────────────────────────────────

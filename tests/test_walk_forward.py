@@ -803,3 +803,83 @@ class TestWalkForwardComparisonResult:
             walk_forward   = False,
         )
         assert isinstance(result, ComparisonResult)
+
+    def test_save_summary_writes_json(self, ohlcv, tmp_path):
+        """save_summary() writes a valid JSON file to the given directory."""
+        import json
+        from ml.comparison.runner import run_comparison
+        cfg = WalkForwardConfig(n_folds=2, min_train_size=100)
+        result = run_comparison(
+            symbol="TEST", df=ohlcv, models=["baseline"],
+            walk_forward=True, wf_config=cfg,
+        )
+        path = result.save_summary(output_dir=tmp_path)
+        assert path.exists()
+        assert path.suffix == ".json"
+        data = json.loads(path.read_text())
+        assert data["symbol"] == "TEST"
+        assert "aggregates" in data
+        assert "promotions" in data
+
+    def test_save_summary_default_dir(self, ohlcv, tmp_path, monkeypatch):
+        """save_summary() with no args resolves to ml/outputs/walk_forward/."""
+        import json
+        from pathlib import Path
+        from ml.comparison.runner import run_comparison
+        # Redirect default output dir so we don't pollute the real tree
+        monkeypatch.chdir(tmp_path)
+        cfg = WalkForwardConfig(n_folds=2, min_train_size=100)
+        result = run_comparison(
+            symbol="TEST", df=ohlcv, models=["baseline"],
+            walk_forward=True, wf_config=cfg,
+        )
+        out_dir = tmp_path / "ml" / "outputs" / "walk_forward"
+        path = result.save_summary(output_dir=out_dir)
+        assert path.exists()
+        data = json.loads(path.read_text())
+        assert data["winner"] == "baseline"
+
+
+# ── WalkForwardResult.print_summary and save_summary ─────────────────────────
+
+class TestWalkForwardResultMethods:
+    def test_print_summary_runs(self, ohlcv, capsys):
+        cfg = WalkForwardConfig(n_folds=2, min_train_size=100)
+        results = run_walk_forward(
+            symbol="TEST", df=ohlcv, models=("baseline",),
+            config=cfg,
+        )
+        wf = results["baseline"]
+        wf.print_summary()
+        out = capsys.readouterr().out
+        assert "WF Result" in out
+        assert "baseline" in out
+        assert "fold" in out.lower()
+
+    def test_print_summary_has_all_folds(self, ohlcv, capsys):
+        cfg = WalkForwardConfig(n_folds=2, min_train_size=100)
+        results = run_walk_forward(
+            symbol="TEST", df=ohlcv, models=("baseline",),
+            config=cfg,
+        )
+        wf = results["baseline"]
+        wf.print_summary()
+        out = capsys.readouterr().out
+        assert "0" in out  # fold 0
+        assert "1" in out  # fold 1
+
+    def test_save_summary_writes_json(self, ohlcv, tmp_path):
+        import json
+        cfg = WalkForwardConfig(n_folds=2, min_train_size=100)
+        results = run_walk_forward(
+            symbol="TEST", df=ohlcv, models=("baseline",),
+            config=cfg,
+        )
+        wf = results["baseline"]
+        out_path = tmp_path / "wf_test.json"
+        saved = wf.save_summary(out_path)
+        assert saved.exists()
+        data = json.loads(saved.read_text())
+        assert data["symbol"] == "TEST"
+        assert data["model_type"] == "baseline"
+        assert len(data["fold_results"]) == 2
