@@ -1,10 +1,11 @@
 """FinBrain ingestion orchestrator.
 
-Entry point for all data ingestion. Runs all four connectors in sequence:
-  1. yfinance  — equities, forex, commodities
-  2. CoinGecko — top 20 crypto
-  3. FRED      — 10 macro indicators
+Entry point for all data ingestion. Runs all five connectors in sequence:
+  1. yfinance      — equities, forex, commodities
+  2. CoinGecko     — top 20 crypto
+  3. FRED          — 10 macro indicators
   4. Alpha Vantage — supplemental equity data (top 10 only, free tier limit)
+  5. ECB           — Euro area macro (exchange rates, rates, inflation, yields)
 
 Usage:
     python data/ingest/run.py [--dry-run]
@@ -21,6 +22,7 @@ import sys
 from data.ingest import (
     alpha_vantage_connector,
     coingecko_connector,
+    ecb_connector,
     fred_connector,
     yfinance_connector,
 )
@@ -60,6 +62,10 @@ def _dry_run() -> None:
     for t in AV_TICKERS:
         print(f"  {t}")
 
+    print(f"\n[DRY RUN] ECB: {len(ecb_connector.ECB_SERIES)} series")
+    for sdef in ecb_connector.ECB_SERIES:
+        print(f"  {sdef.indicator}: {sdef.name} ({sdef.frequency})")
+
 
 def run_all(period: str = "2y") -> dict[str, int]:
     """Run all four ingestion connectors and return a summary.
@@ -95,6 +101,12 @@ def run_all(period: str = "2y") -> dict[str, int]:
     av_results = alpha_vantage_connector.run(AV_TICKERS)
     summary["alpha_vantage"] = sum(r.rows_written for r in av_results if r.error is None)
     logger.info("ingestion_done", connector="alpha_vantage", rows=summary["alpha_vantage"])
+
+    # 5. ECB (Euro area macro — no auth required)
+    logger.info("ingestion_start", connector="ecb")
+    ecb_results = ecb_connector.run()
+    summary["ecb"] = sum(r.rows_written for r in ecb_results if r.error is None)
+    logger.info("ingestion_done", connector="ecb", rows=summary["ecb"])
 
     total = sum(summary.values())
     logger.info("ingestion_complete", total_rows=total, breakdown=summary)
