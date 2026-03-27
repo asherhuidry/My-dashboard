@@ -184,21 +184,19 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run correlation discovery
+      - name: Run correlation discovery (persisted)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
           python -c "
-          from data.agents.correlation_hunter import hunt_correlations, build_correlation_matrix
-          from data.ingest.universe import ETFS, MACRO_SERIES
+          from data.agents.correlation_hunter import run
+          from data.ingest.universe import ETFS
 
-          macro_daily = [s[0] for s in MACRO_SERIES if s[2] == 'daily'][:20]
-          findings = hunt_correlations(
-              symbols      = ETFS[:25],
-              macro_series = macro_daily,
-              max_pairs    = 500,
-              min_abs_r    = 0.35,
-          )
+          findings = run(symbols=ETFS[:25])
           strong = [f for f in findings if f.strength in ('strong', 'very_strong')]
-          print(f'Found {len(findings)} correlations, {len(strong)} strong')
+          print(f'Correlation discovery: {len(findings)} findings, {len(strong)} strong')
+          print(f'Discoveries persisted to Supabase for research queries')
           for f in strong[:10]:
               print(f'  {f.series_a} -> {f.series_b}: r={f.pearson_r:.3f} lag={f.lag_days}d [{f.relationship_type}]')
           "
@@ -271,7 +269,7 @@ jobs:
   pipeline-summary:
     name: "Pipeline Summary"
     runs-on: ubuntu-latest
-    needs: [macro-ingest, ecb-ingest, social-ingest]
+    needs: [macro-ingest, ecb-ingest, social-ingest, correlation-hunt]
     if: always()
     steps:
       - name: Report pipeline status
