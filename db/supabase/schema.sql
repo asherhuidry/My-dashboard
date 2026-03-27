@@ -203,6 +203,38 @@ CREATE POLICY "service role full access" ON quarantine
     USING (auth.role() = 'service_role');
 
 -- ─────────────────────────────────────────────
+-- discoveries
+-- Persisted correlation findings from the weekly correlation hunter.
+-- ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS discoveries (
+    id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    series_a          TEXT        NOT NULL,
+    series_b          TEXT        NOT NULL,
+    lag_days          INTEGER     NOT NULL,
+    pearson_r         NUMERIC(8,6) NOT NULL,
+    granger_p         NUMERIC(8,6),
+    mutual_info       NUMERIC(8,6),
+    regime            TEXT        NOT NULL DEFAULT 'all',
+    strength          TEXT        NOT NULL DEFAULT 'moderate'
+                                  CHECK (strength IN ('strong', 'moderate', 'weak')),
+    relationship_type TEXT        NOT NULL DEFAULT 'discovered',
+    run_id            UUID        NOT NULL,
+    computed_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_discoveries_series_a   ON discoveries (series_a);
+CREATE INDEX IF NOT EXISTS idx_discoveries_series_b   ON discoveries (series_b);
+CREATE INDEX IF NOT EXISTS idx_discoveries_strength   ON discoveries (strength);
+CREATE INDEX IF NOT EXISTS idx_discoveries_run_id     ON discoveries (run_id);
+CREATE INDEX IF NOT EXISTS idx_discoveries_pearson_r  ON discoveries (pearson_r DESC);
+CREATE INDEX IF NOT EXISTS idx_discoveries_created_at ON discoveries (created_at DESC);
+
+ALTER TABLE discoveries ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "service role full access" ON discoveries
+    USING (auth.role() = 'service_role');
+
+-- ─────────────────────────────────────────────
 -- updated_at trigger (applied to tables that have it)
 -- ─────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION update_updated_at()

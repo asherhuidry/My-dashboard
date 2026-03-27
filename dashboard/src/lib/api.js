@@ -85,6 +85,13 @@ export const fetchDiscoveries = (params={}) =>
 export const fetchDiscoverySummary = () =>
   api.get('/api/discoveries/summary').then(r => r.data)
 
+// ── Sources ─────────────────────────────────────────────────────────────────────
+export const fetchSources = (params={}) =>
+  api.get('/api/sources', { params }).then(r => r.data)
+
+export const fetchSourceSummary = () =>
+  api.get('/api/sources/summary').then(r => r.data)
+
 // ── Chat ───────────────────────────────────────────────────────────────────────
 export const postChat = (message, symbol=null, context=null) =>
   api.post('/api/chat', { message, symbol, context }).then(r => r.data)

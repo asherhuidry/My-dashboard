@@ -142,6 +142,17 @@ class TestListDiscoveries:
         assert r.status_code == 500
         assert "connection refused" in r.json()["detail"]
 
+    def test_table_missing_returns_empty(self):
+        """PGRST205 (table not found) returns empty results, not 500."""
+        client = _make_client()
+        with patch("db.supabase.client.get_discoveries", side_effect=Exception("PGRST205 schema cache lookup")):
+            r = client.get("/api/discoveries")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["discoveries"] == []
+        assert data["total"] == 0
+        assert data["pending_migration"] is True
+
 
 # ── GET /api/discoveries/summary ─────────────────────────────────────────────
 
@@ -199,3 +210,16 @@ class TestDiscoverySummary:
         with patch("db.supabase.client.get_discoveries", side_effect=Exception("timeout")):
             r = client.get("/api/discoveries/summary")
         assert r.status_code == 500
+
+    def test_table_missing_returns_zero_state(self):
+        """PGRST205 (table not found) returns zero-state summary, not 500."""
+        client = _make_client()
+        with patch("db.supabase.client.get_discoveries", side_effect=Exception("PGRST205 schema cache")):
+            r = client.get("/api/discoveries/summary")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total_discoveries"] == 0
+        assert data["by_strength"] == {}
+        assert data["unique_series"] == 0
+        assert data["run_count"] == 0
+        assert data["latest_run_id"] is None

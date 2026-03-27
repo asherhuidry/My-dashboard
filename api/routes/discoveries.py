@@ -13,6 +13,19 @@ logger = get_logger(__name__)
 
 router = APIRouter()
 
+_EMPTY_SUMMARY = {
+    "total_discoveries": 0,
+    "by_strength": {},
+    "unique_series": 0,
+    "run_count": 0,
+    "latest_run_id": None,
+}
+
+
+def _is_table_missing(exc: Exception) -> bool:
+    """Check if the error is a Supabase 'table not found' error."""
+    return "PGRST205" in str(exc) or "schema cache" in str(exc)
+
 
 @router.get("/discoveries")
 def list_discoveries(
@@ -25,6 +38,7 @@ def list_discoveries(
     """Query persisted correlation discoveries with optional filters.
 
     Returns discoveries ordered by |pearson_r| descending.
+    Returns empty results if the discoveries table has not been created yet.
     """
     try:
         from db.supabase.client import get_discoveries
@@ -50,6 +64,9 @@ def list_discoveries(
             },
         }
     except Exception as exc:
+        if _is_table_missing(exc):
+            logger.warning("discoveries_table_not_created_yet")
+            return {"discoveries": [], "total": 0, "filters": {}, "pending_migration": True}
         logger.error("discoveries_query_failed", error=str(exc))
         raise HTTPException(status_code=500, detail=str(exc))
 
@@ -60,6 +77,7 @@ def discovery_summary() -> dict:
 
     Useful for dashboards to show: how many discoveries exist,
     breakdown by strength, most recent run timestamp.
+    Returns zero-state if the discoveries table has not been created yet.
     """
     try:
         from db.supabase.client import get_discoveries
@@ -67,13 +85,7 @@ def discovery_summary() -> dict:
         all_rows = get_discoveries(limit=500)
 
         if not all_rows:
-            return {
-                "total_discoveries": 0,
-                "by_strength": {},
-                "unique_series": 0,
-                "run_count": 0,
-                "latest_run_id": None,
-            }
+            return _EMPTY_SUMMARY
 
         by_strength: dict[str, int] = {}
         series_set: set[str] = set()
@@ -98,5 +110,8 @@ def discovery_summary() -> dict:
             "latest_run_id": all_rows[0].get("run_id") if all_rows else None,
         }
     except Exception as exc:
+        if _is_table_missing(exc):
+            logger.warning("discoveries_table_not_created_yet")
+            return _EMPTY_SUMMARY
         logger.error("discoveries_summary_failed", error=str(exc))
         raise HTTPException(status_code=500, detail=str(exc))

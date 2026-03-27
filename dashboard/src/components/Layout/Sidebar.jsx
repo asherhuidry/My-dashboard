@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, LineChart, Database, Activity, Network,
-  Brain, SlidersHorizontal, Cpu, FlaskConical, Search, Zap, TestTube2, Compass,
+  Brain, SlidersHorizontal, Cpu, FlaskConical, Search, Zap, TestTube2, Compass, Globe,
 } from 'lucide-react'
 
 const nav = [
@@ -11,6 +11,7 @@ const nav = [
   { to:'/research',      icon: Search,            label: 'Research',      desc: 'AI intelligence' },
   { to:'/experiments',   icon: TestTube2,          label: 'Experiments',   desc: 'Model runs'      },
   { to:'/discoveries',   icon: Compass,            label: 'Discoveries',   desc: 'Research output' },
+  { to:'/sources',       icon: Globe,              label: 'Sources',       desc: 'Data pipeline'   },
   { to:'/backtest',      icon: FlaskConical,      label: 'Backtest',      desc: 'Signal testing'  },
   { to:'/screener',      icon: SlidersHorizontal, label: 'Screener',      desc: 'Asset scanner'   },
   { to:'/network',       icon: Network,           label: 'Network',       desc: 'Data graph'      },

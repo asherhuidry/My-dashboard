@@ -15,6 +15,7 @@ import Screener      from './pages/Screener'
 import Intelligence  from './pages/Intelligence'
 import Experiments   from './pages/Experiments'
 import Discoveries   from './pages/Discoveries'
+import Sources       from './pages/Sources'
 
 const qc = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } }
@@ -42,6 +43,7 @@ export default function App() {
                   <Route path="/intelligence"  element={<Intelligence />} />
                   <Route path="/experiments"  element={<Experiments />}  />
                   <Route path="/discoveries"  element={<Discoveries />}  />
+                  <Route path="/sources"      element={<Sources />}      />
                 </Routes>
               </ErrorBoundary>
             </div>

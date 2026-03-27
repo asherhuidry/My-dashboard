@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.routes import (
     health, prices, analysis, search, db_stats, evolution,
     graph, chat, screener, ws, predict, backtest, research, data_sources,
-    intelligence, neural, experiments, discoveries,
+    intelligence, neural, experiments, discoveries, sources,
 )
 
 log = logging.getLogger(__name__)
@@ -46,6 +46,7 @@ app.include_router(intelligence.router,  prefix="/api")
 app.include_router(neural.router,        prefix="/api")
 app.include_router(experiments.router,   prefix="/api")
 app.include_router(discoveries.router,  prefix="/api")
+app.include_router(sources.router,      prefix="/api")
 app.include_router(ws.router)        # WebSocket has no /api prefix for ws://
 
 
