@@ -1,8 +1,9 @@
 name: Weekly Model Retrain
 
 on:
-  schedule:
-    - cron: '0 4 * * 0'   # 4 AM UTC every Sunday
+  # Schedule disabled — re-enable when LSTM models are validated
+  # schedule:
+  #   - cron: '0 4 * * 0'   # 4 AM UTC every Sunday
   workflow_dispatch:
     inputs:
       assets:

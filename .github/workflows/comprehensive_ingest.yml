@@ -1,40 +1,32 @@
-name: Comprehensive Data Intelligence Pipeline
+name: Weekly Market Graph Pipeline
 
 on:
   schedule:
-    # Daily at 6:30 AM ET (market pre-open)
-    - cron: '30 11 * * 1-5'
-    # Weekly full run Saturday at 8 AM ET (includes slower operations)
+    # Saturday 8 AM ET — full weekly pipeline
     - cron: '0 13 * * 6'
   workflow_dispatch:
     inputs:
-      mode:
-        description: 'Run mode'
+      skip_ingest:
+        description: 'Skip data ingestion (run discovery only)'
         required: false
-        default: 'daily'
-        type: choice
-        options:
-          - daily
-          - weekly
-          - full_rebuild
+        default: false
+        type: boolean
 
 env:
-  ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
-  SUPABASE_URL:       ${{ secrets.SUPABASE_URL }}
-  SUPABASE_KEY:       ${{ secrets.SUPABASE_KEY }}
-  FRED_API_KEY:       ${{ secrets.FRED_API_KEY }}
-  NEO4J_URI:          ${{ secrets.NEO4J_URI }}
-  NEO4J_USER:         ${{ secrets.NEO4J_USER }}
-  NEO4J_PASSWORD:     ${{ secrets.NEO4J_PASSWORD }}
-  QDRANT_URL:         ${{ secrets.QDRANT_URL }}
-  QDRANT_API_KEY:     ${{ secrets.QDRANT_API_KEY }}
+  SUPABASE_URL:    ${{ secrets.SUPABASE_URL }}
+  SUPABASE_KEY:    ${{ secrets.SUPABASE_KEY }}
+  FRED_API_KEY:    ${{ secrets.FRED_API_KEY }}
+  NEO4J_URI:       ${{ secrets.NEO4J_URI }}
+  NEO4J_USER:      ${{ secrets.NEO4J_USER }}
+  NEO4J_PASSWORD:  ${{ secrets.NEO4J_PASSWORD }}
 
 jobs:
-  # ── Job 1: Macro data (FRED 65 series) ──────────────────────────────────────
+  # ── Job 1: FRED macro data (65 series → Supabase) ─────────────────────────
   macro-ingest:
-    name: "Macro Data — 65 FRED Series"
+    name: "FRED Macro — 65 Series"
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    if: ${{ github.event.inputs.skip_ingest != 'true' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -46,21 +38,21 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run expanded macro ingest
+      - name: Run FRED macro ingest
         run: |
           python -c "
           from data.ingest.macro_expanded import run
           result = run(start_date='2005-01-01', store=True)
-          print(f'Macro ingest complete: {result[\"series_fetched\"]} series, '
-                f'{result[\"total_observations\"]} obs, '
-                f'regime={result[\"regime\"][\"quadrant\"]}')
+          print(f'Macro ingest: {result[\"series_fetched\"]} series, '
+                f'{result[\"total_observations\"]} observations')
           "
 
-  # ── Job 2: ECB macro data (Euro area — no auth required) ────────────────────
+  # ── Job 2: ECB macro data (Euro area — no auth) ───────────────────────────
   ecb-ingest:
-    name: "ECB — Euro Area Macro (8 Series)"
+    name: "ECB — Euro Area Macro"
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    if: ${{ github.event.inputs.skip_ingest != 'true' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -73,106 +65,32 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run ECB ingest
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
           python -c "
-          from data.ingest.ecb_connector import run, ECB_SERIES
+          from data.ingest.ecb_connector import run
           results = run(start_period='2020-01-01')
           ok = [r for r in results if r.error is None]
-          fail = [r for r in results if r.error is not None]
           total = sum(r.rows_fetched for r in ok)
-          print(f'ECB ingest: {len(ok)}/{len(results)} series OK, '
-                f'{total} observations fetched')
-          for r in fail:
-              print(f'  FAILED: {r.indicator} — {r.error}')
+          print(f'ECB ingest: {len(ok)}/{len(results)} series OK, {total} observations')
           "
 
-  # ── Job 3: Social sentiment ──────────────────────────────────────────────────
-  social-ingest:
-    name: "Social Sentiment — Reddit / StockTwits / Trends"
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Fetch social intelligence for top symbols
-        run: |
-          python -c "
-          from data.ingest.social_data import fetch_social_intelligence
-          from data.ingest.universe import EQUITIES
-
-          symbols = EQUITIES[:30]  # Top 30 most liquid
-          results = {}
-          for sym in symbols:
-              try:
-                  data = fetch_social_intelligence(sym, include_trends=False)
-                  comp = data.get('composite', {})
-                  results[sym] = comp.get('label', 'neutral')
-                  print(f'{sym}: {comp.get(\"label\",\"neutral\")} '
-                        f'(reddit: {data[\"reddit\"].get(\"mentions\",0)} mentions)')
-              except Exception as e:
-                  print(f'{sym}: error — {e}')
-          "
-
-  # ── Job 4: EDGAR fundamentals ────────────────────────────────────────────────
-  edgar-ingest:
-    name: "SEC EDGAR — Fundamentals + Insider Trades"
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    if: github.event.schedule == '0 13 * * 6' || github.event.inputs.mode == 'weekly' || github.event.inputs.mode == 'full_rebuild'
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Fetch EDGAR fundamentals for universe
-        run: |
-          python -c "
-          from data.ingest.edgar_full import fetch_fundamentals_for_universe
-          from data.ingest.universe import EQUITIES
-
-          results = fetch_fundamentals_for_universe(EQUITIES[:50])
-          success = sum(1 for r in results.values() if 'error' not in r)
-          print(f'EDGAR: {success}/{len(results)} symbols with data')
-          "
-
-      - name: Fetch congressional trades
-        run: |
-          python -c "
-          from data.ingest.edgar_full import get_congress_trades
-          from data.ingest.universe import EQUITIES
-
-          all_trades = []
-          for sym in EQUITIES[:20]:
-              trades = get_congress_trades(sym)
-              all_trades.extend(trades)
-              if trades:
-                  print(f'{sym}: {len(trades)} congressional trades')
-          print(f'Total congressional trades found: {len(all_trades)}')
-          "
-
-  # ── Job 5: Correlation discovery ─────────────────────────────────────────────
-  correlation-hunt:
-    name: "Correlation Hunter — Granger + Lead-Lag"
+  # ── Job 3: Discovery → Persist → Graph Materialize ────────────────────────
+  #
+  # This is the core pipeline. correlation_hunter.run() does:
+  #   1. Fetch price returns via yfinance (no pre-ingest needed)
+  #   2. Fetch FRED macro levels
+  #   3. Compute Pearson + Granger + mutual info for all pairs
+  #   4. Persist discoveries to Supabase
+  #   5. Auto-materialize the full market graph in Neo4j
+  #
+  # The graph compounds every time this runs.
+  #
+  discovery-pipeline:
+    name: "Discovery → Persist → Graph"
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: github.event.schedule == '0 13 * * 6' || github.event.inputs.mode == 'weekly' || github.event.inputs.mode == 'full_rebuild'
+    needs: [macro-ingest, ecb-ingest]
+    if: always()
     steps:
       - uses: actions/checkout@v4
 
@@ -184,101 +102,40 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run correlation discovery (persisted)
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      - name: Run full discovery pipeline
         run: |
-          python -c "
+          python -X utf8 -c "
           from data.agents.correlation_hunter import run
-          from data.ingest.universe import ETFS
 
-          findings = run(symbols=ETFS[:25])
-          strong = [f for f in findings if f.strength in ('strong', 'very_strong')]
-          print(f'Correlation discovery: {len(findings)} findings, {len(strong)} strong')
-          print(f'Discoveries persisted to Supabase for research queries')
-          for f in strong[:10]:
-              print(f'  {f.series_a} -> {f.series_b}: r={f.pearson_r:.3f} lag={f.lag_days}d [{f.relationship_type}]')
+          # run() uses the full universe (60 assets + 20 FRED macro series)
+          # and automatically: discover → persist to Supabase → materialize Neo4j graph
+          findings = run()
+
+          strong   = sum(1 for f in findings if f.strength == 'strong')
+          moderate = sum(1 for f in findings if f.strength == 'moderate')
+          granger  = sum(1 for f in findings if f.granger_p and f.granger_p < 0.05)
+
+          print(f'Discovery pipeline complete:')
+          print(f'  Total findings:    {len(findings)}')
+          print(f'  Strong:            {strong}')
+          print(f'  Moderate:          {moderate}')
+          print(f'  Granger-causal:    {granger}')
+          print(f'  (graph auto-materialized in Neo4j)')
+
+          for f in sorted(findings, key=lambda x: abs(x.pearson_r), reverse=True)[:10]:
+              print(f'  {f.series_a:12s} <-> {f.series_b:12s}  r={f.pearson_r:+.3f}  lag={f.lag_days:+3d}d  [{f.strength}]')
           "
 
-  # ── Job 6: Knowledge graph build ──────────────────────────────────────────────
-  knowledge-graph:
-    name: "Knowledge Graph — Supply Chain + Macro Relationships"
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    needs: [correlation-hunt]
-    if: always() && (github.event.schedule == '0 13 * * 6' || github.event.inputs.mode == 'weekly' || github.event.inputs.mode == 'full_rebuild')
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Build knowledge graph
-        run: |
-          python -c "
-          from data.agents.knowledge_builder import run
-          result = run()
-          print(f'Knowledge graph: supply_chain={result[\"supply_chain\"]}')
-          print(f'correlations={result[\"correlations\"]}')
-          "
-
-  # ── Job 7: Feature matrix build (for ML) ──────────────────────────────────────
-  feature-build:
-    name: "ML Features — 150+ Feature Matrix"
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    if: github.event.schedule == '0 13 * * 6' || github.event.inputs.mode == 'weekly' || github.event.inputs.mode == 'full_rebuild'
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Build feature matrices for top symbols
-        run: |
-          python -c "
-          import yfinance as yf
-          import pandas as pd
-          from ml.patterns.features_expanded import build_feature_matrix, get_feature_names
-          from data.ingest.universe import EQUITIES
-
-          symbols = EQUITIES[:10]
-          for sym in symbols:
-              try:
-                  df = yf.download(sym, period='3y', auto_adjust=True, progress=False)
-                  df.columns = [c.lower() for c in df.columns]
-                  feat_df = build_feature_matrix(df, include_groups=['technical', 'volatility', 'calendar', 'event'])
-                  features = get_feature_names(feat_df)
-                  print(f'{sym}: {len(feat_df)} rows x {len(features)} features')
-              except Exception as e:
-                  print(f'{sym}: error — {e}')
-          "
-
-  # ── Summary job ───────────────────────────────────────────────────────────────
+  # ── Summary ────────────────────────────────────────────────────────────────
   pipeline-summary:
     name: "Pipeline Summary"
     runs-on: ubuntu-latest
-    needs: [macro-ingest, ecb-ingest, social-ingest, correlation-hunt]
+    needs: [macro-ingest, ecb-ingest, discovery-pipeline]
     if: always()
     steps:
-      - name: Report pipeline status
+      - name: Report
         run: |
-          echo "=== Comprehensive Data Intelligence Pipeline Complete ==="
-          echo "Macro ingest:    ${{ needs.macro-ingest.result }}"
-          echo "ECB ingest:      ${{ needs.ecb-ingest.result }}"
-          echo "Social ingest:   ${{ needs.social-ingest.result }}"
-          echo "EDGAR ingest:    ${{ needs.edgar-ingest.result || 'skipped' }}"
-          echo "Correlation hunt: ${{ needs.correlation-hunt.result || 'skipped' }}"
-          echo "Knowledge graph: ${{ needs.knowledge-graph.result || 'skipped' }}"
-          echo "Feature build:   ${{ needs.feature-build.result || 'skipped' }}"
+          echo "=== Weekly Market Graph Pipeline ==="
+          echo "FRED macro ingest:    ${{ needs.macro-ingest.result }}"
+          echo "ECB macro ingest:     ${{ needs.ecb-ingest.result }}"
+          echo "Discovery + Graph:    ${{ needs.discovery-pipeline.result }}"

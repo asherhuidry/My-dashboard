@@ -6,11 +6,21 @@ Add these at: **GitHub repo → Settings → Secrets and variables → Actions �
 
 | Secret Name | Where to get it | Required for |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) → API Keys | AI Chat, Research, backtest insights |
 | `SUPABASE_URL` | Supabase Dashboard → Settings → API → Project URL | All DB writes |
 | `SUPABASE_KEY` | Supabase Dashboard → Settings → API → `service_role` key | All DB writes |
-| `FRED_API_KEY` | [fred.stlouisfed.org/docs/api/api_key.html](https://fred.stlouisfed.org/docs/api/api_key.html) (free) | Macro data ingestion |
-| `ALPHA_VANTAGE_KEY` | [alphavantage.co/support/#api-key](https://alphavantage.co/support/#api-key) (free tier) | Additional market data |
+| `FRED_API_KEY` | [fred.stlouisfed.org/docs/api/api_key.html](https://fred.stlouisfed.org/docs/api/api_key.html) (free) | Macro data ingestion + discovery |
+| `NEO4J_URI` | Neo4j Aura Console → Connection URI | Graph materialization |
+| `NEO4J_USER` | Neo4j Aura Console → Username | Graph materialization |
+| `NEO4J_PASSWORD` | Neo4j Aura Console → Password | Graph materialization |
+
+### Optional (for extended ingestion)
+
+| Secret Name | Where to get it | Required for |
+|---|---|---|
+| `ALPHA_VANTAGE_KEY` | [alphavantage.co/support/#api-key](https://alphavantage.co/support/#api-key) (free tier) | Supplemental equity data |
+| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) → API Keys | AI Chat, Research |
+| `QDRANT_URL` | Qdrant Cloud → Cluster URL | Vector embeddings |
+| `QDRANT_API_KEY` | Qdrant Cloud → API Key | Vector embeddings |
 
 ## Step-by-step
 
@@ -22,30 +32,31 @@ Add these at: **GitHub repo → Settings → Secrets and variables → Actions �
 
 ## Verify Secrets Are Working
 
-After adding secrets, push any commit to `main` to trigger the workflow, or manually run:
-- **GitHub** → **Actions** tab → Select workflow → **Run workflow**
+After adding the 6 required secrets, trigger the weekly pipeline manually:
+- **GitHub** → **Actions** tab → **Weekly Market Graph Pipeline** → **Run workflow**
 
-## Workflows That Use Secrets
+## Active Workflows
 
-| Workflow | Schedule | Secrets Used |
+| Workflow | Schedule | What it does |
 |---|---|---|
-| `ingest_hourly.yml` | Every hour | SUPABASE_URL, SUPABASE_KEY, FRED_API_KEY, ALPHA_VANTAGE_KEY |
-| `daily_analysis.yml` | Weekdays 6:30 AM UTC | SUPABASE_URL, SUPABASE_KEY |
-| `weekly_retrain.yml` | Sundays 4 AM UTC | SUPABASE_URL, SUPABASE_KEY |
+| `comprehensive_ingest.yml` | Saturday 8 AM ET | FRED macro + ECB + discovery → persist → graph materialize |
+| `ingest_hourly.yml` | Every hour | Price/macro data archival to Supabase |
+| `daily_analysis.yml` | Weekdays 6:30 AM UTC | Noise filter + data quality check |
+| `python-app.yml` | Every push | Lint + test suite |
 
 ## Local .env File
 
 For local development, create `.env` in the project root:
 
 ```env
-ANTHROPIC_API_KEY=sk-ant-...
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_KEY=eyJ...
 FRED_API_KEY=your_fred_key
-ALPHA_VANTAGE_KEY=your_av_key
 NEO4J_URI=neo4j+s://...
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=...
+ALPHA_VANTAGE_KEY=your_av_key
+ANTHROPIC_API_KEY=sk-ant-...
 QDRANT_URL=https://...
 QDRANT_API_KEY=...
 ```

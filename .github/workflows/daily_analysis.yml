@@ -1,8 +1,9 @@
 name: Daily Analysis & Feature Compute
 
 on:
-  schedule:
-    - cron: '30 6 * * 1-5'  # 6:30 AM UTC weekdays (market pre-open)
+  # Daily schedule disabled — enable after secrets are configured and tested
+  # schedule:
+  #   - cron: '30 6 * * 1-5'
   workflow_dispatch:
 
 jobs:

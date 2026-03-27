@@ -1,9 +1,10 @@
 name: Hourly Data Ingestion
 
 on:
-  schedule:
-    - cron: '0 * * * *'   # every hour on the hour
-  workflow_dispatch:        # manual trigger from GitHub UI
+  # Hourly schedule disabled — enable after secrets are configured and tested
+  # schedule:
+  #   - cron: '0 * * * *'
+  workflow_dispatch:
 
 jobs:
   ingest:

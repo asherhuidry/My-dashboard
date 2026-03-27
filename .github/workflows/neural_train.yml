@@ -1,11 +1,10 @@
 name: FinBrainNet — Neural Training Pipeline
 
 on:
-  schedule:
-    # Full offline training: Sundays at 2 AM ET
-    - cron: '0 7 * * 0'
-    # Daily online update: weekdays at 5 AM ET (before market open)
-    - cron: '0 10 * * 1-5'
+  # Schedule disabled — re-enable when neural models are validated
+  # schedule:
+  #   - cron: '0 7 * * 0'   # Full offline training: Sundays at 2 AM ET
+  #   - cron: '0 10 * * 1-5' # Daily online update: weekdays at 5 AM ET
   workflow_dispatch:
     inputs:
       mode:
