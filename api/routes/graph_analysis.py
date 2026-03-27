@@ -1,8 +1,9 @@
-"""Graph structural analysis API routes.
+"""Graph structural analysis and intelligence API routes.
 
 Exposes read-only structural insights extracted from the Neo4j market
 graph: exposure-profile similarity, regime divergence, bridge factors,
-and degree centrality.
+degree centrality, and an integrated intelligence report with
+provenance, edge-level diffs, and ranked insights.
 """
 from __future__ import annotations
 
@@ -38,3 +39,20 @@ def graph_analysis(
         "bridge_factors":     analyze_bridge_factors(),
         "centrality":         analyze_centrality(top_n=top_n),
     }
+
+
+@router.get("/graph/intelligence")
+def graph_intelligence(
+    run_id: str | None = Query(None, description="Discovery run_id to link report to"),
+) -> dict:
+    """Return an integrated graph intelligence report.
+
+    Combines structural analysis, source provenance, edge-level diffs
+    against the previous snapshot, and ranked insights.  Answers:
+    - What changed in the graph since last run?
+    - Which edges are new / stronger / weaker?
+    - What sources support each node or edge?
+    - What are the most important structural findings right now?
+    """
+    from data.agents.graph_intelligence import build_intelligence_report
+    return build_intelligence_report(run_id=run_id)
