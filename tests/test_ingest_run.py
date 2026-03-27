@@ -175,8 +175,8 @@ class TestWorkflowWiring:
         assert "ecb-ingest" in content
         assert "ECB ingest" in content
 
-    def test_correlation_hunt_calls_run(self):
-        """The correlation-hunt job should call run() (which persists), not hunt_correlations()."""
+    def test_discovery_pipeline_calls_run(self):
+        """The discovery-pipeline job should call run() (which persists), not hunt_correlations()."""
         from pathlib import Path
 
         wf_path = (
@@ -190,8 +190,8 @@ class TestWorkflowWiring:
         # Must NOT call hunt_correlations directly (bypasses persistence)
         assert "hunt_correlations(" not in content
 
-    def test_correlation_hunt_has_supabase_env(self):
-        """The correlation-hunt job needs SUPABASE env vars for discovery persistence."""
+    def test_discovery_pipeline_has_supabase_env(self):
+        """The discovery-pipeline job needs SUPABASE env vars for discovery persistence."""
         import yaml
         from pathlib import Path
 
@@ -200,19 +200,13 @@ class TestWorkflowWiring:
             / ".github" / "workflows" / "comprehensive_ingest.yml"
         )
         wf = yaml.safe_load(wf_path.read_text(encoding="utf-8"))
-        hunt_job = wf["jobs"]["correlation-hunt"]
+        # Env vars are set at workflow level, verify they exist
+        top_env = wf.get("env", {})
+        assert "SUPABASE_URL" in top_env, "workflow must pass SUPABASE_URL env var"
+        assert "SUPABASE_KEY" in top_env, "workflow must pass SUPABASE_KEY env var"
 
-        # Find the step with env vars
-        env_vars_found = False
-        for step in hunt_job["steps"]:
-            env = step.get("env", {})
-            if "SUPABASE_URL" in env and "SUPABASE_KEY" in env:
-                env_vars_found = True
-                break
-        assert env_vars_found, "correlation-hunt job must pass SUPABASE env vars"
-
-    def test_pipeline_summary_needs_correlation_hunt(self):
-        """Pipeline summary must depend on correlation-hunt to report its status."""
+    def test_pipeline_summary_needs_discovery_pipeline(self):
+        """Pipeline summary must depend on discovery-pipeline to report its status."""
         import yaml
         from pathlib import Path
 
@@ -222,7 +216,7 @@ class TestWorkflowWiring:
         )
         wf = yaml.safe_load(wf_path.read_text(encoding="utf-8"))
         summary_job = wf["jobs"]["pipeline-summary"]
-        assert "correlation-hunt" in summary_job["needs"]
+        assert "discovery-pipeline" in summary_job["needs"]
 
 
 # ── ECB series metadata ─────────────────────────────────────────────────────
