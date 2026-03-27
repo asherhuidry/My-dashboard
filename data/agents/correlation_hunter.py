@@ -91,6 +91,7 @@ def _fetch_returns(symbols: list[str], period: str = "3y") -> pd.DataFrame:
 
     Returns:
         DataFrame of daily log returns, one column per symbol.
+        Index is timezone-naive date for clean alignment with FRED data.
     """
     data = {}
     for sym in symbols:
@@ -98,7 +99,7 @@ def _fetch_returns(symbols: list[str], period: str = "3y") -> pd.DataFrame:
             t = yf.Ticker(sym)
             h = t.history(period=period)
             if not h.empty:
-                h.index = pd.to_datetime(h.index, utc=True)
+                h.index = h.index.normalize().tz_localize(None)
                 closes  = h["Close"].dropna()
                 data[sym] = np.log(closes / closes.shift(1)).dropna()
         except Exception as exc:
@@ -107,13 +108,18 @@ def _fetch_returns(symbols: list[str], period: str = "3y") -> pd.DataFrame:
 
 
 def _fetch_macro_levels(series_ids: list[str]) -> pd.DataFrame:
-    """Fetch FRED macro series as % changes.
+    """Fetch FRED macro series as standardized daily changes.
+
+    Uses first-differencing and z-score normalization rather than pct_change,
+    because many macro indicators are already levels (VIX, yields, spreads)
+    where pct_change produces noisy near-zero values.  The resulting series
+    are comparable in scale to log-return price series.
 
     Args:
         series_ids: List of FRED series identifiers.
 
     Returns:
-        DataFrame of daily/monthly pct changes, one column per series.
+        DataFrame of standardized daily changes, one column per series.
     """
     import os
     try:
@@ -127,10 +133,17 @@ def _fetch_macro_levels(series_ids: list[str]) -> pd.DataFrame:
         try:
             s = fred.get_series(sid, observation_start="2015-01-01")
             s = s.dropna()
-            s.index = pd.to_datetime(s.index, utc=True)
-            # Resample to daily (forward-fill for monthly/quarterly)
-            daily = s.resample("D").last().ffill()
-            data[sid] = daily.pct_change().dropna()
+            s.index = pd.to_datetime(s.index).normalize()
+            # Resample to business days (forward-fill for monthly/quarterly)
+            daily = s.resample("B").last().ffill()
+            # First-difference then z-score normalise so the scale is
+            # comparable to log returns of price series.
+            diff = daily.diff().dropna()
+            std = diff.std()
+            if std > 0:
+                data[sid] = diff / std
+            else:
+                log.debug("Skipping %s: zero variance after differencing", sid)
         except Exception as exc:
             log.debug("FRED fetch failed for %s: %s", sid, exc)
 
