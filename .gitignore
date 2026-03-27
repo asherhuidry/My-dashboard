@@ -46,12 +46,19 @@ dashboard/.vite/
 .DS_Store
 Thumbs.db
 
-# ML artifacts
+# ML artifacts — checkpoints, scalers, serialised models
+# Checkpoints are saved to ml/checkpoints/ (not ml/patterns/checkpoints/)
+ml/checkpoints/
 ml/patterns/checkpoints/
 ml/patterns/*.pt
 ml/patterns/*.pth
 *.pkl
 *.joblib
+
+# Walk-forward and comparison run outputs (generated at runtime)
+# Directory stubs (ml/outputs/**/.gitkeep) are tracked; JSON/JSONL are not.
+ml/outputs/**/*.json
+ml/outputs/**/*.jsonl
 
 # Logs
 *.log
