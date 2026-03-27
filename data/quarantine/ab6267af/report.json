@@ -1,0 +1,94 @@
+{
+  "source_id": "ecb_statistical_data_warehouse",
+  "dataset_key": "ECB_EURUSD",
+  "checked_at": "2026-03-27T19:00:02.259347+00:00",
+  "row_count": 1,
+  "passed": false,
+  "schema_hash": "-6287292957558132029",
+  "error_count": 1,
+  "warning_count": 1,
+  "checks": [
+    {
+      "name": "required_columns",
+      "passed": true,
+      "severity": "error",
+      "message": "Required columns present: ['date', 'value']",
+      "detail": {
+        "missing": []
+      }
+    },
+    {
+      "name": "row_count",
+      "passed": false,
+      "severity": "error",
+      "message": "At least 10 rows required",
+      "detail": {
+        "row_count": 1,
+        "min_rows": 10
+      }
+    },
+    {
+      "name": "null_rate",
+      "passed": true,
+      "severity": "error",
+      "message": "Null rate \u2264 5% per column",
+      "detail": {
+        "max_null_pct": 0.0,
+        "bad_columns": {}
+      }
+    },
+    {
+      "name": "duplicate_rows",
+      "passed": true,
+      "severity": "warning",
+      "message": "No duplicate rows",
+      "detail": {
+        "duplicate_count": 0
+      }
+    },
+    {
+      "name": "duplicate_timestamps",
+      "passed": true,
+      "severity": "error",
+      "message": "No duplicate values in 'date'",
+      "detail": {
+        "duplicate_count": 0
+      }
+    },
+    {
+      "name": "stale_data",
+      "passed": false,
+      "severity": "warning",
+      "message": "Latest row within 10 calendar days",
+      "detail": {
+        "latest_date": "2024-03-01",
+        "staleness_days": 756
+      }
+    },
+    {
+      "name": "monotonic_timestamps",
+      "passed": true,
+      "severity": "warning",
+      "message": "'date' is monotonically increasing",
+      "detail": {
+        "is_monotonic": true
+      }
+    },
+    {
+      "name": "schema_drift",
+      "passed": true,
+      "severity": "info",
+      "message": "No expected schema provided; hash recorded.",
+      "detail": {
+        "schema_hash": "-6287292957558132029",
+        "columns": [
+          "date",
+          "indicator",
+          "source",
+          "unit",
+          "value"
+        ]
+      }
+    }
+  ]
+}

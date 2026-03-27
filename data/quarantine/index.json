@@ -1,0 +1,70 @@
+{
+  "updated_at": "2026-03-27T19:00:02.274350+00:00",
+  "entries": [
+    {
+      "entry_id": "b05c85bf",
+      "source_id": "ecb_statistical_data_warehouse",
+      "dataset_key": "ECB_EURUSD",
+      "reason": "At least 10 rows required",
+      "error_count": 1,
+      "warning_count": 1,
+      "row_count": 1,
+      "quarantined_at": "2026-03-27T18:46:13.492210+00:00",
+      "resolved_at": null,
+      "report_path": "C:\\Users\\asher\\Documents\\My-dashboard\\data\\quarantine\\b05c85bf\\report.json",
+      "data_path": "C:\\Users\\asher\\Documents\\My-dashboard\\data\\quarantine\\b05c85bf\\data.csv"
+    },
+    {
+      "entry_id": "d2d637a6",
+      "source_id": "ecb_statistical_data_warehouse",
+      "dataset_key": "ECB_EURUSD",
+      "reason": "At least 10 rows required",
+      "error_count": 1,
+      "warning_count": 1,
+      "row_count": 1,
+      "quarantined_at": "2026-03-27T18:47:59.078506+00:00",
+      "resolved_at": null,
+      "report_path": "C:\\Users\\asher\\Documents\\My-dashboard\\data\\quarantine\\d2d637a6\\report.json",
+      "data_path": "C:\\Users\\asher\\Documents\\My-dashboard\\data\\quarantine\\d2d637a6\\data.csv"
+    },
+    {
+      "entry_id": "5acd1f9f",
+      "source_id": "ecb_statistical_data_warehouse",
+      "dataset_key": "ECB_EURUSD",
+      "reason": "At least 10 rows required",
+      "error_count": 1,
+      "warning_count": 1,
+      "row_count": 1,
+      "quarantined_at": "2026-03-27T18:48:14.796405+00:00",
+      "resolved_at": null,
+      "report_path": "C:\\Users\\asher\\Documents\\My-dashboard\\data\\quarantine\\5acd1f9f\\report.json",
+      "data_path": "C:\\Users\\asher\\Documents\\My-dashboard\\data\\quarantine\\5acd1f9f\\data.csv"
+    },
+    {
+      "entry_id": "04315aa8",
+      "source_id": "ecb_statistical_data_warehouse",
+      "dataset_key": "ECB_EURUSD",
+      "reason": "At least 10 rows required",
+      "error_count": 1,
+      "warning_count": 1,
+      "row_count": 1,
+      "quarantined_at": "2026-03-27T18:55:23.411643+00:00",
+      "resolved_at": null,
+      "report_path": "C:\\Users\\asher\\Documents\\My-dashboard\\data\\quarantine\\04315aa8\\report.json",
+      "data_path": "C:\\Users\\asher\\Documents\\My-dashboard\\data\\quarantine\\04315aa8\\data.csv"
+    },
+    {
+      "entry_id": "ab6267af",
+      "source_id": "ecb_statistical_data_warehouse",
+      "dataset_key": "ECB_EURUSD",
+      "reason": "At least 10 rows required",
+      "error_count": 1,
+      "warning_count": 1,
+      "row_count": 1,
+      "quarantined_at": "2026-03-27T19:00:02.262346+00:00",
+      "resolved_at": null,
+      "report_path": "C:\\Users\\asher\\Documents\\My-dashboard\\data\\quarantine\\ab6267af\\report.json",
+      "data_path": "C:\\Users\\asher\\Documents\\My-dashboard\\data\\quarantine\\ab6267af\\data.csv"
+    }
+  ]
+}
