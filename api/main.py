@@ -7,7 +7,11 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import health, prices, analysis, search, db_stats, evolution, graph, chat, screener, ws
+from api.routes import (
+    health, prices, analysis, search, db_stats, evolution,
+    graph, chat, screener, ws, predict, backtest, research, data_sources,
+    intelligence, neural, experiments,
+)
 
 log = logging.getLogger(__name__)
 
@@ -34,6 +38,13 @@ app.include_router(evolution.router, prefix="/api")
 app.include_router(graph.router,     prefix="/api")
 app.include_router(chat.router,      prefix="/api")
 app.include_router(screener.router,  prefix="/api")
+app.include_router(predict.router,   prefix="/api")
+app.include_router(backtest.router,  prefix="/api")
+app.include_router(research.router,      prefix="/api")
+app.include_router(data_sources.router,  prefix="/api")
+app.include_router(intelligence.router,  prefix="/api")
+app.include_router(neural.router,        prefix="/api")
+app.include_router(experiments.router,   prefix="/api")
 app.include_router(ws.router)        # WebSocket has no /api prefix for ws://
 
 
