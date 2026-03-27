@@ -139,6 +139,59 @@ class QuarantineRecord:
     original_id: str | None = None
 
 
+@dataclass
+class DiscoveryRecord:
+    """One discovered statistical relationship to persist in the discoveries table.
+
+    Attributes:
+        series_a:          First series (potential cause or co-mover).
+        series_b:          Second series (potential effect).
+        lag_days:          Lead/lag in trading days (positive = A leads B).
+        pearson_r:         Pearson correlation at best lag.
+        granger_p:         p-value of Granger causality test (A causes B), or None.
+        mutual_info:       Mutual information in bits, or None.
+        regime:            Market regime: 'all', 'bull', or 'bear'.
+        strength:          'strong', 'moderate', or 'weak'.
+        relationship_type: Known type from universe or 'discovered'.
+        run_id:            Groups findings from the same discovery run.
+        computed_at:       When the discovery was computed.
+    """
+    series_a:          str
+    series_b:          str
+    lag_days:          int
+    pearson_r:         float
+    granger_p:         float | None       = None
+    mutual_info:       float | None       = None
+    regime:            str                = "all"
+    strength:          str                = "moderate"
+    relationship_type: str                = "discovered"
+    run_id:            str                = field(default_factory=lambda: str(uuid.uuid4()))
+    computed_at:       datetime           = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+
+    def to_payload(self) -> dict[str, Any]:
+        """Convert to a Supabase insert payload.
+
+        Returns:
+            Dict suitable for a Supabase table insert.
+        """
+        payload: dict[str, Any] = {
+            "series_a":          self.series_a,
+            "series_b":          self.series_b,
+            "lag_days":          self.lag_days,
+            "pearson_r":         round(self.pearson_r, 6),
+            "regime":            self.regime,
+            "strength":          self.strength,
+            "relationship_type": self.relationship_type,
+            "run_id":            self.run_id,
+            "computed_at":       self.computed_at.isoformat(),
+        }
+        if self.granger_p is not None:
+            payload["granger_p"] = round(self.granger_p, 6)
+        if self.mutual_info is not None:
+            payload["mutual_info"] = round(self.mutual_info, 6)
+        return payload
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Write helpers — one per table
 # ─────────────────────────────────────────────────────────────────────────────
@@ -333,3 +386,66 @@ def write_system_health(metric: str, value: float, threshold: float | None = Non
         logger.warning("system_health_threshold_exceeded", metric=metric, value=value,
                        threshold=threshold)
     return result.data[0]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Discovery persistence — correlation findings
+# ─────────────────────────────────────────────────────────────────────────────
+
+def save_discoveries(records: list[DiscoveryRecord]) -> list[dict[str, Any]]:
+    """Bulk-insert discovery records into the discoveries table.
+
+    Args:
+        records: List of DiscoveryRecord objects to persist.
+
+    Returns:
+        List of inserted rows as returned by Supabase.
+    """
+    if not records:
+        return []
+    client = get_client()
+    payloads = [r.to_payload() for r in records]
+    result = client.table("discoveries").insert(payloads).execute()
+    logger.info("discoveries_saved", count=len(records), run_id=records[0].run_id)
+    return result.data
+
+
+def get_discoveries(
+    *,
+    series: str | None = None,
+    strength: str | None = None,
+    run_id: str | None = None,
+    min_abs_r: float | None = None,
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    """Query persisted discoveries with optional filters.
+
+    Args:
+        series:    Filter to findings involving this series (as A or B).
+        strength:  Filter by strength level ('strong', 'moderate', 'weak').
+        run_id:    Filter to a specific discovery run.
+        min_abs_r: Minimum |pearson_r| to include.
+        limit:     Maximum rows to return (default 100).
+
+    Returns:
+        List of discovery row dicts, ordered by |pearson_r| descending.
+    """
+    client = get_client()
+    query = client.table("discoveries").select("*")
+
+    if strength is not None:
+        query = query.eq("strength", strength)
+    if run_id is not None:
+        query = query.eq("run_id", run_id)
+
+    query = query.order("pearson_r", desc=True).limit(limit)
+    result = query.execute()
+    rows = result.data
+
+    # Client-side filters that Supabase PostgREST doesn't handle neatly
+    if series is not None:
+        rows = [r for r in rows if r.get("series_a") == series or r.get("series_b") == series]
+    if min_abs_r is not None:
+        rows = [r for r in rows if abs(r.get("pearson_r", 0)) >= min_abs_r]
+
+    return rows

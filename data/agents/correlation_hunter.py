@@ -491,7 +491,10 @@ def run(symbols: list[str] | None = None) -> list[CorrelationFinding]:
         max_pairs     = 1000,
     )
 
-    # Log to evolution
+    # Persist discoveries to queryable store
+    run_id = _persist_discoveries(findings)
+
+    # Log summary to evolution audit trail
     try:
         from db.supabase.client import log_evolution, EvolutionLogEntry
         log_evolution(EvolutionLogEntry(
@@ -501,9 +504,50 @@ def run(symbols: list[str] | None = None) -> list[CorrelationFinding]:
                 "findings":      len(findings),
                 "strong":        sum(1 for f in findings if f.strength == "strong"),
                 "with_granger":  sum(1 for f in findings if f.granger_p and f.granger_p < 0.05),
+                "run_id":        run_id,
             },
         ))
     except Exception:
         pass
 
     return findings
+
+
+def _persist_discoveries(findings: list[CorrelationFinding]) -> str | None:
+    """Convert CorrelationFindings to DiscoveryRecords and persist them.
+
+    Args:
+        findings: List of correlation findings from the hunt.
+
+    Returns:
+        The run_id used for this batch, or None if persistence failed.
+    """
+    if not findings:
+        return None
+    try:
+        import uuid as _uuid
+        from db.supabase.client import DiscoveryRecord, save_discoveries
+
+        run_id = str(_uuid.uuid4())
+        records = [
+            DiscoveryRecord(
+                series_a          = f.series_a,
+                series_b          = f.series_b,
+                lag_days          = f.lag_days,
+                pearson_r         = f.pearson_r,
+                granger_p         = f.granger_p,
+                mutual_info       = f.mutual_info,
+                regime            = f.regime,
+                strength          = f.strength,
+                relationship_type = f.relationship_type,
+                run_id            = run_id,
+                computed_at       = f.timestamp,
+            )
+            for f in findings
+        ]
+        save_discoveries(records)
+        log.info("Persisted %d discoveries (run_id=%s)", len(records), run_id)
+        return run_id
+    except Exception as exc:
+        log.warning("Failed to persist discoveries: %s", exc)
+        return None
