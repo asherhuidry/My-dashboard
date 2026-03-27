@@ -195,6 +195,81 @@ registry.
 
 ---
 
+## Differential sync
+
+Use `sync_graph_from_store` when claim statuses change after the initial
+enrichment pass.  Unlike a full re-enrichment, sync only touches edges whose
+status no longer matches their source claim.
+
+### When to use sync vs full enrichment
+
+| Situation | Recommended action |
+|---|---|
+| First-time population of the graph | `enrich_graph_from_claims` |
+| A claim is promoted from PROPOSED → SUPPORTED | `sync_graph_from_store` |
+| A claim is rejected or archived | `sync_graph_from_store` |
+| Many new claims added at once | `enrich_graph_from_claims` |
+| Scheduled nightly alignment pass | `sync_graph_from_store` |
+
+### How claim status affects edge status
+
+| Claim status | Edge status |
+|---|---|
+| SUPPORTED | ACTIVE |
+| PROPOSED  | PROPOSED |
+| WEAK      | WEAK |
+| REJECTED  | REJECTED |
+| ARCHIVED  | ARCHIVED |
+
+This mapping is defined once in `claim_status_to_edge_status()` in
+`ml/graph/converter.py` and used by both the converter and the sync layer.
+
+### Usage
+
+```python
+from ml.evidence.store import ClaimStore
+from ml.graph.store import GraphStore
+from ml.graph.sync import sync_graph_from_store
+
+claim_store = ClaimStore()
+graph_store = GraphStore()
+
+# Default: update existing edges, report missing ones (no creation)
+report = sync_graph_from_store(claim_store, graph_store)
+print(report.summary())
+# SyncReport
+#   edges updated       : 2
+#   edges created       : 0
+#   unchanged           : 5
+#   missing (no edge)   : 1
+#   claims skipped      : 0
+
+# Also create edges for SUPPORTED claims that have no edge yet
+report = sync_graph_from_store(
+    claim_store, graph_store, create_missing=True
+)
+
+# Also create edges for PROPOSED claims (explicit opt-in)
+report = sync_graph_from_store(
+    claim_store, graph_store,
+    create_missing=True, include_proposed=True,
+)
+
+# Sync only specific claims
+report = sync_graph_from_store(
+    claim_store, graph_store, claim_ids=["abc...", "def..."]
+)
+```
+
+### What sync will never do
+
+- Create edges for WEAK, REJECTED, or ARCHIVED claims (even with `create_missing=True`).
+- Create duplicate edges for a claim that already has an edge.
+- Remove edges from the graph (status is updated to REJECTED/ARCHIVED, not deleted).
+- Call external services or modify claim data.
+
+---
+
 ## How this supports future graph DB integration safely
 
 The local graph layer is designed as a staging area:
