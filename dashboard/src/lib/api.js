@@ -78,6 +78,13 @@ export const fetchBestExperiment = (metric='accuracy', modelType=null, higherIsB
 export const fetchExperiment = (id) =>
   api.get(`/api/experiments/${id}`).then(r => r.data)
 
+// ── Discoveries ──────────────────────────────────────────────────────────────
+export const fetchDiscoveries = (params={}) =>
+  api.get('/api/discoveries', { params }).then(r => r.data)
+
+export const fetchDiscoverySummary = () =>
+  api.get('/api/discoveries/summary').then(r => r.data)
+
 // ── Chat ───────────────────────────────────────────────────────────────────────
 export const postChat = (message, symbol=null, context=null) =>
   api.post('/api/chat', { message, symbol, context }).then(r => r.data)
