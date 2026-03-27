@@ -365,3 +365,266 @@ class TestRunIntegration:
 
         assert len(findings) == 1
         assert findings[0].relationship_type == "discovered"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Test regime classification
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestRegimeClassification:
+    """Regime mask construction from market data."""
+
+    def _make_market_data(self, n: int = 300, seed: int = 42):
+        """Build synthetic asset returns and macro data with clear regime periods."""
+        rng = np.random.RandomState(seed)
+        dates = pd.date_range("2022-01-01", periods=n, freq="B")
+
+        # SPY returns: first 150 days positive trend, last 150 negative
+        spy = np.zeros(n)
+        spy[:150] = 0.005 + rng.randn(150) * 0.01   # bull
+        spy[150:] = -0.005 + rng.randn(150) * 0.01   # bear
+
+        asset_returns = pd.DataFrame({
+            "SPY":  spy,
+            "AAPL": spy * 1.2 + rng.randn(n) * 0.005,
+        }, index=dates)
+
+        # VIX proxy: low in first half, high spikes in second half
+        vix_z = np.zeros(n)
+        vix_z[:150] = rng.randn(150) * 0.3           # low vol
+        vix_z[150:] = 1.0 + rng.randn(150) * 0.5     # high vol
+
+        macro_levels = pd.DataFrame({
+            "VIXCLS": vix_z,
+            "GS10":   rng.randn(n),
+        }, index=dates)
+
+        return asset_returns, macro_levels
+
+    def test_bear_mask_identifies_drawdowns(self):
+        """Bear mask should flag periods after sustained negative returns."""
+        from data.agents.sensitivity_analyzer import build_regime_masks
+
+        asset_returns, macro_levels = self._make_market_data()
+        masks = build_regime_masks(asset_returns, macro_levels)
+
+        assert "bear" in masks
+        bear = masks["bear"]
+        # After 63-day lookback, the bear period should be the second half
+        # Check that bear days are concentrated in the later portion
+        mid = len(bear) // 2
+        bear_in_second_half = bear.iloc[mid:].sum()
+        bear_in_first_half = bear.iloc[:mid].sum()
+        assert bear_in_second_half > bear_in_first_half
+
+    def test_stress_mask_identifies_high_vol(self):
+        """Stress mask should flag periods of elevated VIX."""
+        from data.agents.sensitivity_analyzer import build_regime_masks
+
+        asset_returns, macro_levels = self._make_market_data()
+        masks = build_regime_masks(asset_returns, macro_levels)
+
+        assert "stress" in masks
+        stress = masks["stress"]
+        # Stress should be roughly 25% of days (75th percentile)
+        stress_pct = stress.sum() / len(stress)
+        assert 0.10 < stress_pct < 0.50
+
+    def test_missing_spy_skips_bear(self):
+        """Without SPY in returns, bear mask should not be created."""
+        from data.agents.sensitivity_analyzer import build_regime_masks
+
+        n = 200
+        dates = pd.date_range("2023-01-01", periods=n, freq="B")
+        rng = np.random.RandomState(42)
+
+        # No SPY column
+        asset_returns = pd.DataFrame({"AAPL": rng.randn(n)}, index=dates)
+        macro_levels = pd.DataFrame({"VIXCLS": rng.randn(n)}, index=dates)
+
+        masks = build_regime_masks(asset_returns, macro_levels)
+
+        assert "bear" not in masks
+
+    def test_missing_vix_skips_stress(self):
+        """Without VIX in macro data, stress mask should not be created."""
+        from data.agents.sensitivity_analyzer import build_regime_masks
+
+        n = 200
+        dates = pd.date_range("2023-01-01", periods=n, freq="B")
+        rng = np.random.RandomState(42)
+
+        asset_returns = pd.DataFrame({"SPY": rng.randn(n)}, index=dates)
+        macro_levels = pd.DataFrame({"GS10": rng.randn(n)}, index=dates)
+
+        masks = build_regime_masks(asset_returns, macro_levels)
+
+        assert "stress" not in masks
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Test regime-conditioned sensitivity
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestRegimeConditionedSensitivity:
+    """OLS betas computed within specific market regimes."""
+
+    def test_regime_beta_differs_from_full_sample(self):
+        """An asset with regime-dependent exposure should show different betas."""
+        from data.agents.sensitivity_analyzer import (
+            compute_factor_sensitivities, compute_regime_sensitivities,
+        )
+
+        n = 400
+        dates = pd.date_range("2022-01-01", periods=n, freq="B")
+        rng = np.random.RandomState(42)
+
+        factor = rng.randn(n)
+
+        # Asset: low sensitivity in first half, high in second half
+        asset = np.zeros(n)
+        asset[:200] = 0.1 * factor[:200] + rng.randn(200) * 0.5   # weak beta
+        asset[200:] = 0.9 * factor[200:] + rng.randn(200) * 0.3   # strong beta
+
+        asset_df = pd.DataFrame({"AAPL": asset}, index=dates)
+        macro_df = pd.DataFrame({"GS10": factor}, index=dates)
+
+        # Regime mask: second half is "bear"
+        bear_mask = pd.Series([False] * 200 + [True] * 200, index=dates)
+        masks = {"bear": bear_mask}
+
+        regime_results = compute_regime_sensitivities(asset_df, macro_df, masks)
+
+        # Should find AAPL rate_sensitive in bear regime
+        bear_hits = [r for r in regime_results
+                     if r["series_a"] == "AAPL" and r["regime"] == "bear"
+                     and r["factor_group"] == "rate"]
+        assert len(bear_hits) == 1
+        # Bear beta should be closer to 0.9 than to the full-sample average
+        assert abs(bear_hits[0]["beta"]) > 0.5
+
+    def test_regime_results_carry_regime_label(self):
+        """Every result from compute_regime_sensitivities has a regime field."""
+        from data.agents.sensitivity_analyzer import compute_regime_sensitivities
+
+        n = 200
+        dates = pd.date_range("2023-01-01", periods=n, freq="B")
+        rng = np.random.RandomState(42)
+
+        factor = rng.randn(n)
+        asset = 0.8 * factor + rng.randn(n) * 0.3
+
+        asset_df = pd.DataFrame({"NVDA": asset}, index=dates)
+        macro_df = pd.DataFrame({"GS10": factor}, index=dates)
+
+        mask = pd.Series([True] * n, index=dates)  # all days in regime
+        masks = {"stress": mask}
+
+        results = compute_regime_sensitivities(asset_df, macro_df, masks)
+
+        for r in results:
+            assert r["regime"] == "stress"
+            assert r["relationship_type"].endswith("_sensitive")
+
+    def test_insufficient_regime_days_produces_no_results(self):
+        """Regime with too few days should be skipped entirely."""
+        from data.agents.sensitivity_analyzer import compute_regime_sensitivities
+
+        n = 200
+        dates = pd.date_range("2023-01-01", periods=n, freq="B")
+        rng = np.random.RandomState(42)
+
+        asset_df = pd.DataFrame({"AAPL": rng.randn(n)}, index=dates)
+        macro_df = pd.DataFrame({"GS10": rng.randn(n)}, index=dates)
+
+        # Only 10 days in regime — below MIN_REGIME_OBS
+        mask = pd.Series([False] * n, index=dates)
+        mask.iloc[:10] = True
+        masks = {"bear": mask}
+
+        results = compute_regime_sensitivities(asset_df, macro_df, masks)
+
+        assert len(results) == 0
+
+    def test_regress_single_passes_regime_to_output(self):
+        """_regress_single with regime param should set the regime in output."""
+        from data.agents.sensitivity_analyzer import _regress_single
+
+        factor = _make_factor(n=200)
+        asset = _make_asset_returns(factor, beta=0.7, noise_std=0.3)
+
+        result = _regress_single(asset, factor, "TLT", "GS10", "rate", 2.0,
+                                 regime="bear")
+
+        assert result is not None
+        assert result["regime"] == "bear"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Test regime-aware SENSITIVE_TO edges in materializer
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestRegimeSensitiveEdges:
+    """Materializer creates separate SENSITIVE_TO edges per regime."""
+
+    def _asset_lookup(self) -> dict[str, str]:
+        return {"AAPL": "equity", "XLE": "etf", "TLT": "etf"}
+
+    def _macro_lookup(self) -> dict[str, tuple[str, str]]:
+        return {"GS10": ("10-Year Treasury Yield", "daily")}
+
+    def test_bear_regime_edge_carries_regime(self):
+        """A bear-regime sensitivity should produce edge with regime='bear'."""
+        from data.agents.graph_materializer import _build_edge
+
+        row = {
+            "series_a": "AAPL",
+            "series_b": "GS10",
+            "pearson_r": -0.5,
+            "lag_days": 0,
+            "granger_p": 0.001,
+            "mutual_info": -0.8,  # beta
+            "strength": "strong",
+            "regime": "bear",
+            "relationship_type": "rate_sensitive",
+        }
+
+        edges = _build_edge(row, self._asset_lookup(), self._macro_lookup())
+
+        assert len(edges) == 1
+        assert edges[0]["rel_type"] == "SENSITIVE_TO"
+        assert edges[0]["regime"] == "bear"
+        assert edges[0]["beta"] == -0.8
+        assert edges[0]["factor_group"] == "rate"
+
+    def test_different_regimes_produce_separate_edges(self):
+        """Same asset+factor with different regimes should produce separate edges."""
+        from data.agents.graph_materializer import _build_edge
+
+        base = {
+            "series_a": "AAPL", "series_b": "GS10",
+            "pearson_r": -0.3, "lag_days": 0, "granger_p": None,
+            "strength": "moderate", "relationship_type": "rate_sensitive",
+        }
+
+        row_all = {**base, "mutual_info": -0.3, "regime": "all"}
+        row_bear = {**base, "mutual_info": -0.7, "regime": "bear"}
+        row_stress = {**base, "mutual_info": -0.9, "regime": "stress"}
+
+        edge_all = _build_edge(row_all, self._asset_lookup(), self._macro_lookup())[0]
+        edge_bear = _build_edge(row_bear, self._asset_lookup(), self._macro_lookup())[0]
+        edge_stress = _build_edge(row_stress, self._asset_lookup(), self._macro_lookup())[0]
+
+        # All should be SENSITIVE_TO with same source/target
+        for e in [edge_all, edge_bear, edge_stress]:
+            assert e["rel_type"] == "SENSITIVE_TO"
+            assert e["source_id"] == "AAPL"
+            assert e["target_id"] == "GS10"
+
+        # But different regimes and betas
+        assert edge_all["regime"] == "all"
+        assert edge_bear["regime"] == "bear"
+        assert edge_stress["regime"] == "stress"
+        assert edge_all["beta"] == -0.3
+        assert edge_bear["beta"] == -0.7
+        assert edge_stress["beta"] == -0.9

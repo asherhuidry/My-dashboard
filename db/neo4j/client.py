@@ -509,11 +509,22 @@ def batch_merge_edges(edges: list[dict[str, Any]]) -> int:
             src_key = "ticker" if src_label == "Asset" else "series_id"
             tgt_key = "ticker" if tgt_label == "Asset" else "series_id"
 
+            # SENSITIVE_TO edges need (factor_group, regime) in the MERGE key
+            # so that bear/stress betas get their own edges rather than
+            # overwriting the all-regime beta.
+            if rel_type == "SENSITIVE_TO":
+                merge_clause = (
+                    f"MERGE (a)-[r:{rel_type} "
+                    "{factor_group: e.factor_group, regime: e.regime}]->(b)"
+                )
+            else:
+                merge_clause = f"MERGE (a)-[r:{rel_type}]->(b)"
+
             cypher = f"""
                 UNWIND $edges AS e
                 MATCH (a:{src_label} {{{src_key}: e.source_id}})
                 MATCH (b:{tgt_label} {{{tgt_key}: e.target_id}})
-                MERGE (a)-[r:{rel_type}]->(b)
+                {merge_clause}
                 SET r.pearson_r         = e.pearson_r,
                     r.lag_days          = e.lag_days,
                     r.granger_p         = e.granger_p,

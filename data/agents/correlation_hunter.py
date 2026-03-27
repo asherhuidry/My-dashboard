@@ -555,11 +555,12 @@ def _run_sensitivity_pass(
     price_symbols: list[str],
     macro_ids: list[str],
 ) -> list[CorrelationFinding]:
-    """Run factor sensitivity analysis and convert results to CorrelationFindings.
+    """Run factor sensitivity analysis across all regimes.
 
-    Fetches asset returns and macro data, then computes OLS betas for each
-    asset against each sensitivity factor. Results are stored as
-    CorrelationFindings with relationship_type like 'rate_sensitive'.
+    Runs three passes:
+    1. "all" regime — full-sample OLS betas (static exposure)
+    2. "bear" regime — betas during market drawdowns (63d return < 0)
+    3. "stress" regime — betas during elevated volatility (VIX > 75th pctl)
 
     The beta coefficient is stored in the mutual_info field (repurposed)
     so it persists through the existing Supabase schema without migration.
@@ -574,6 +575,7 @@ def _run_sensitivity_pass(
     try:
         from data.agents.sensitivity_analyzer import (
             compute_factor_sensitivities, SENSITIVITY_FACTORS,
+            build_regime_masks, compute_regime_sensitivities,
         )
     except ImportError as exc:
         log.warning("Sensitivity analyzer not available: %s", exc)
@@ -592,7 +594,18 @@ def _run_sensitivity_pass(
         log.warning("Insufficient data for sensitivity analysis")
         return []
 
+    # Pass 1: Full-sample sensitivities (regime="all")
     raw_results = compute_factor_sensitivities(price_df, macro_df)
+
+    # Pass 2: Regime-conditioned sensitivities (regime="bear", "stress")
+    regime_masks = build_regime_masks(price_df, macro_df)
+    if regime_masks:
+        regime_results = compute_regime_sensitivities(
+            price_df, macro_df, regime_masks,
+        )
+        raw_results.extend(regime_results)
+        log.info("Regime sensitivity pass: %d regime-conditioned exposures",
+                 len(regime_results))
 
     # Convert sensitivity dicts to CorrelationFindings for unified persistence.
     # Beta is stored in mutual_info to fit the existing Supabase schema.
@@ -605,11 +618,15 @@ def _run_sensitivity_pass(
             pearson_r         = r["pearson_r"],
             granger_p         = r.get("p_value"),
             mutual_info       = r["beta"],       # beta stored in mutual_info
+            regime            = r.get("regime", "all"),
             strength          = r["strength"],
             relationship_type = r["relationship_type"],
         ))
 
-    log.info("Sensitivity pass: %d significant factor exposures found", len(findings))
+    n_all    = sum(1 for r in raw_results if r.get("regime") == "all")
+    n_regime = len(raw_results) - n_all
+    log.info("Sensitivity pass: %d all-regime + %d regime-conditioned = %d total",
+             n_all, n_regime, len(findings))
     return findings
 
 
