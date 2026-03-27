@@ -2,6 +2,10 @@
 
 Fetches macro indicator time series via the fredapi library and
 writes them to the TimescaleDB macro_events hypertable.
+
+Validation is applied before any write: if the fetched series fails
+ERROR-level checks, the payload is routed to the QuarantineStore and
+no rows are written to TimescaleDB.
 """
 
 from __future__ import annotations
@@ -13,6 +17,8 @@ from datetime import datetime, timezone
 import pandas as pd
 from fredapi import Fred
 
+from data.validation.quarantine import QuarantineStore
+from data.validation.validator import validate_timeseries
 from db.supabase.client import (
     AgentRun,
     EvolutionLogEntry,
@@ -27,6 +33,9 @@ from skills.logger import get_logger
 logger = get_logger(__name__)
 
 AGENT_ID = "fred_connector"
+
+# Module-level QuarantineStore — created once, reused across calls.
+_quarantine = QuarantineStore()
 
 # The 10 macro indicators specified in CLAUDE.md
 DEFAULT_SERIES: list[tuple[str, str, str]] = [
@@ -61,6 +70,7 @@ class FredFetchResult:
     start_date: str | None
     end_date: str | None
     error: str | None = None
+    quarantine_id: str | None = None
 
 
 def _get_fred_client() -> Fred:
@@ -104,6 +114,39 @@ def fetch_series(
             )
 
         series = series.dropna()
+
+        # ── Validation gate ───────────────────────────────────────────────
+        # Build a two-column DataFrame (date, value) for the validator.
+        df_val = pd.DataFrame({
+            "date":  pd.to_datetime(series.index),
+            "value": series.values,
+        })
+        # FRED monthly/quarterly data can be 30-100 days stale by design;
+        # use a generous max_stale_days to avoid WARNING noise on these series.
+        report = validate_timeseries(
+            df_val,
+            source_id    = "fred_api",
+            dataset_key  = series_id,
+            required_cols = ["date", "value"],
+            time_col     = "date",
+            min_rows     = 5,
+            max_stale_days = 100,   # quarterly GDP is never "fresh"
+        )
+        if not report.passed:
+            entry = _quarantine.save(report, df_val)
+            logger.warning(
+                "fred_validation_failed",
+                series_id=series_id, errors=len(report.errors),
+                quarantine_id=entry.entry_id,
+            )
+            return FredFetchResult(
+                series_id=series_id, name=name,
+                rows_written=0, start_date=None, end_date=None,
+                error=f"validation failed ({len(report.errors)} errors)",
+                quarantine_id=entry.entry_id,
+            )
+        # ── End validation gate ───────────────────────────────────────────
+
         rows: list[MacroEventRow] = []
         for date, value in series.items():
             dt = pd.Timestamp(date).to_pydatetime()

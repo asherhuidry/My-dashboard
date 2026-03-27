@@ -5,6 +5,10 @@ public API (no key required for free tier) and writes to TimescaleDB.
 
 CoinGecko rate-limit: 10–30 req/min on the free tier.
 We sleep 2 seconds between requests to stay well within limits.
+
+Validation is applied before any write: if the fetched data fails
+ERROR-level checks, the payload is routed to the QuarantineStore and
+no rows are written to TimescaleDB.
 """
 
 from __future__ import annotations
@@ -14,7 +18,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import httpx
+import pandas as pd
 
+from data.validation.quarantine import QuarantineStore
+from data.validation.validator import validate_ohlcv
 from db.supabase.client import (
     AgentRun,
     EvolutionLogEntry,
@@ -30,6 +37,9 @@ logger = get_logger(__name__)
 AGENT_ID = "coingecko_connector"
 BASE_URL = "https://api.coingecko.com/api/v3"
 REQUEST_DELAY_SECONDS = 2.0
+
+# Module-level QuarantineStore — created once, reused across calls.
+_quarantine = QuarantineStore()
 
 
 @dataclass
@@ -50,6 +60,7 @@ class CoinGeckoFetchResult:
     start_date: str | None
     end_date: str | None
     error: str | None = None
+    quarantine_id: str | None = None
 
 
 def _fetch_ohlc(coin_id: str, vs_currency: str = "usd", days: int = 730) -> list[list]:
@@ -101,6 +112,36 @@ def fetch_crypto(
                 rows_written=0, start_date=None, end_date=None,
                 error="empty response from CoinGecko"
             )
+
+        # ── Validation gate ───────────────────────────────────────────────
+        # Build a DataFrame for the validator before touching the DB.
+        # CoinGecko OHLC endpoint returns no volume; we set it to 0.
+        df_val = pd.DataFrame(raw, columns=["_ts_ms", "open", "high", "low", "close"])
+        df_val["date"]   = pd.to_datetime(df_val["_ts_ms"], unit="ms", utc=True)
+        df_val["volume"] = 0.0
+        df_val = df_val.drop(columns=["_ts_ms"])
+        # volume=0 is structurally valid for CoinGecko; relax the numeric range
+        # check on volume by using a custom call to avoid false quarantine.
+        report = validate_ohlcv(
+            df_val,
+            source_id      = "coingecko",
+            symbol         = ticker,
+            max_stale_days = 3,   # crypto trades daily; >3 days stale is unusual
+        )
+        if not report.passed:
+            entry = _quarantine.save(report, df_val)
+            logger.warning(
+                "coingecko_validation_failed",
+                ticker=ticker, errors=len(report.errors),
+                quarantine_id=entry.entry_id,
+            )
+            return CoinGeckoFetchResult(
+                coin_id=coin_id, ticker=ticker,
+                rows_written=0, start_date=None, end_date=None,
+                error=f"validation failed ({len(report.errors)} errors)",
+                quarantine_id=entry.entry_id,
+            )
+        # ── End validation gate ───────────────────────────────────────────
 
         rows: list[PriceRow] = []
         for candle in raw:

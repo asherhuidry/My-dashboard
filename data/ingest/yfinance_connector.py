@@ -4,6 +4,10 @@ Fetches daily OHLCV history for equities, ETFs, forex pairs, and
 commodities from Yahoo Finance and writes them to TimescaleDB.
 
 Every run logs itself to the agent_runs and evolution_log tables.
+
+Validation is applied before any write: if the fetched DataFrame fails
+ERROR-level checks, the payload is routed to the QuarantineStore and
+no rows are written to TimescaleDB.
 """
 
 from __future__ import annotations
@@ -16,6 +20,8 @@ from typing import Any
 import pandas as pd
 import yfinance as yf
 
+from data.validation.quarantine import QuarantineStore
+from data.validation.validator import validate_ohlcv
 from db.supabase.client import (
     AgentRun,
     EvolutionLogEntry,
@@ -30,6 +36,9 @@ logger = get_logger(__name__)
 
 AGENT_ID = "yfinance_connector"
 
+# Module-level QuarantineStore — created once, reused across calls.
+_quarantine = QuarantineStore()
+
 
 @dataclass
 class YFinanceFetchResult:
@@ -42,6 +51,8 @@ class YFinanceFetchResult:
         start_date: Earliest date in the fetched range.
         end_date: Latest date in the fetched range.
         error: Error message if the fetch failed, else None.
+        quarantine_id: QuarantineStore entry ID if data was quarantined,
+                       else None.
     """
     ticker: str
     asset_class: str
@@ -49,6 +60,7 @@ class YFinanceFetchResult:
     start_date: str | None
     end_date: str | None
     error: str | None = None
+    quarantine_id: str | None = None
 
 
 def fetch_ohlcv(
@@ -85,6 +97,26 @@ def fetch_ohlcv(
 
         df = df.dropna(subset=["Open", "High", "Low", "Close"])
         df.index = pd.to_datetime(df.index, utc=True)
+
+        # ── Validation gate ───────────────────────────────────────────────
+        # Build a lowercase-column view for the validator (expects lowercase).
+        df_val = df.rename(columns=str.lower).copy()
+        df_val["date"] = df_val.index
+        report = validate_ohlcv(df_val, source_id="yfinance", symbol=ticker)
+        if not report.passed:
+            entry = _quarantine.save(report, df_val)
+            logger.warning(
+                "yfinance_validation_failed",
+                ticker=ticker, errors=len(report.errors),
+                quarantine_id=entry.entry_id,
+            )
+            return YFinanceFetchResult(
+                ticker=ticker, asset_class=asset_class,
+                rows_written=0, start_date=None, end_date=None,
+                error=f"validation failed ({len(report.errors)} errors)",
+                quarantine_id=entry.entry_id,
+            )
+        # ── End validation gate ───────────────────────────────────────────
 
         rows: list[PriceRow] = []
         for ts, row in df.iterrows():
