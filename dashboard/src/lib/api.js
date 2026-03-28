@@ -14,7 +14,8 @@ export const fetchEvolution    = (limit=50)      => api.get('/api/evolution-log'
 export const fetchRoadmap      = ()              => api.get('/api/roadmap').then(r => r.data)
 export const fetchCorrelations = (days=63, threshold=0.3) =>
   api.get('/api/graph/correlations', { params: { days, threshold } }).then(r => r.data)
-export const fetchKnowledge    = ()              => api.get('/api/graph/knowledge').then(r => r.data)
+export const fetchKnowledge    = (filters={})     => api.get('/api/graph/knowledge', { params: filters }).then(r => r.data)
+export const fetchNodeDetail   = (name)           => api.get(`/api/graph/node/${encodeURIComponent(name)}`).then(r => r.data)
 export const fetchScreener     = (filters={})   => api.get('/api/screener', { params: filters }).then(r => r.data)
 
 // ── New intelligence routes ────────────────────────────────────────────────────

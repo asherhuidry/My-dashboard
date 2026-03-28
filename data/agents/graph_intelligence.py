@@ -220,7 +220,46 @@ def compute_edge_changes(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 3. Anomaly detection over structural metric time series
+# 3. Edge confidence summary from Neo4j
+# ─────────────────────────────────────────────────────────────────────────────
+
+def query_edge_confidence_stats() -> dict[str, Any] | None:
+    """Query aggregate edge confidence and evidence stats from Neo4j.
+
+    Returns a summary of how well-supported the graph edges are,
+    including mean confidence, evidence accumulation, and the count
+    of low-confidence edges.
+
+    Returns:
+        Dict with confidence stats, or None if unavailable.
+    """
+    try:
+        from db.neo4j.client import get_driver
+        driver = get_driver()
+        with driver.session() as sess:
+            result = sess.run("""
+                MATCH ()-[r]->()
+                WHERE r.confidence IS NOT NULL
+                RETURN
+                  count(r)                                          AS scored_edges,
+                  round(avg(r.confidence), 4)                       AS mean_confidence,
+                  round(min(r.confidence), 4)                       AS min_confidence,
+                  round(percentileDisc(r.confidence, 0.25), 4)      AS p25,
+                  round(percentileDisc(r.confidence, 0.50), 4)      AS median,
+                  sum(CASE WHEN r.confidence < 0.4 THEN 1 ELSE 0 END) AS low_confidence,
+                  sum(CASE WHEN r.evidence_count > 1 THEN 1 ELSE 0 END) AS reconfirmed,
+                  round(avg(coalesce(r.evidence_count, 1)), 2)      AS mean_evidence_count
+            """)
+            row = result.single()
+            if row and row["scored_edges"] > 0:
+                return dict(row)
+    except Exception as exc:
+        log.debug("Edge confidence query unavailable: %s", exc)
+    return None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. Anomaly detection over structural metric time series
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Metrics worth monitoring for structural anomalies — these capture the
@@ -335,7 +374,7 @@ def detect_structural_anomalies(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4. Insight ranking
+# 5. Insight ranking
 # ─────────────────────────────────────────────────────────────────────────────
 
 def rank_insights(
@@ -343,6 +382,7 @@ def rank_insights(
     metrics: dict[str, Any],
     edge_changes: dict[str, Any] | None = None,
     anomalies: dict[str, Any] | None = None,
+    confidence_stats: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Generate a prioritised list of the most important structural findings.
 
@@ -350,11 +390,13 @@ def rank_insights(
     description, and the supporting evidence that produced it.
 
     Args:
-        analysis:     Output of analyze_graph_structure().
-        metrics:      Summary metrics from compute_summary_metrics().
-        edge_changes: Optional edge-level diff from compute_edge_changes().
-        anomalies:    Optional anomaly detection results from
-                      detect_structural_anomalies().
+        analysis:         Output of analyze_graph_structure().
+        metrics:          Summary metrics from compute_summary_metrics().
+        edge_changes:     Optional edge-level diff from compute_edge_changes().
+        anomalies:        Optional anomaly detection results from
+                          detect_structural_anomalies().
+        confidence_stats: Optional edge confidence summary from
+                          query_edge_confidence_stats().
 
     Returns:
         List of insight dicts, sorted by priority (ascending = most important first).
@@ -466,12 +508,58 @@ def rank_insights(
                 "evidence": a,
             })
 
+    # ── Edge confidence insights ─────────────────────────────────────
+    if confidence_stats:
+        total = confidence_stats.get("scored_edges", 0)
+        low = confidence_stats.get("low_confidence", 0)
+        mean_conf = confidence_stats.get("mean_confidence", 1.0)
+        reconfirmed = confidence_stats.get("reconfirmed", 0)
+
+        if total > 0 and mean_conf < 0.45:
+            insights.append({
+                "type": "weak_evidence_base",
+                "priority": 2,
+                "title": f"Graph evidence base is thin (mean confidence {mean_conf:.2f})",
+                "detail": (
+                    f"{low}/{total} edges below 0.4 confidence. "
+                    f"Re-running discovery may strengthen the graph."
+                ),
+                "evidence": confidence_stats,
+            })
+        elif total > 0 and low > 0:
+            low_pct = low / total
+            if low_pct > 0.30:
+                insights.append({
+                    "type": "many_weak_edges",
+                    "priority": 3,
+                    "title": f"{low_pct:.0%} of edges have low confidence",
+                    "detail": (
+                        f"{low} of {total} scored edges below 0.4. "
+                        f"Mean confidence: {mean_conf:.2f}."
+                    ),
+                    "evidence": confidence_stats,
+                })
+
+        if total > 0 and reconfirmed > 0:
+            reconf_pct = reconfirmed / total
+            if reconf_pct > 0.5:
+                insights.append({
+                    "type": "strong_reconfirmation",
+                    "priority": 3,
+                    "title": f"{reconf_pct:.0%} of edges independently reconfirmed",
+                    "detail": (
+                        f"{reconfirmed} of {total} edges seen in multiple discovery runs. "
+                        f"Mean evidence count: {confidence_stats.get('mean_evidence_count', 1):.1f}."
+                    ),
+                    "evidence": confidence_stats,
+                })
+
     insights.sort(key=lambda i: i["priority"])
     return insights
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 5. Combined intelligence report
+# 6. Combined intelligence report
 # ─────────────────────────────────────────────────────────────────────────────
 
 def build_intelligence_report(run_id: str | None = None) -> dict[str, Any]:
@@ -534,7 +622,10 @@ def build_intelligence_report(run_id: str | None = None) -> dict[str, Any]:
     except Exception as exc:
         log.warning("Could not fetch previous snapshot: %s", exc)
 
-    # 3. Source provenance for all series in the analysis
+    # 3. Edge confidence summary
+    confidence_stats = query_edge_confidence_stats()
+
+    # 4. Source provenance for all series in the analysis
     all_series: set[str] = set()
     for p in analysis.get("exposure_profiles", {}).get("similar_pairs", []):
         all_series.add(p["asset_a"])
@@ -550,8 +641,10 @@ def build_intelligence_report(run_id: str | None = None) -> dict[str, Any]:
 
     provenance = {s: resolve_series_source(s) for s in sorted(all_series) if s}
 
-    # 4. Ranked insights (including anomalies when available)
-    insights = rank_insights(analysis, metrics, edge_changes, anomaly_result)
+    # 5. Ranked insights (including anomalies and confidence when available)
+    insights = rank_insights(
+        analysis, metrics, edge_changes, anomaly_result, confidence_stats,
+    )
 
     report: dict[str, Any] = {
         "run_id": run_id,
@@ -567,6 +660,8 @@ def build_intelligence_report(run_id: str | None = None) -> dict[str, Any]:
         report["edge_changes"] = edge_changes
     if anomaly_result:
         report["anomalies"] = anomaly_result
+    if confidence_stats:
+        report["confidence"] = confidence_stats
 
     anomaly_count = len(anomaly_result["anomalies"]) if anomaly_result else 0
     log.info(

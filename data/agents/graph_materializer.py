@@ -152,6 +152,8 @@ def _build_edge(row: dict[str, Any],
         return _build_sensitivity_edge(row, asset_lookup, macro_lookup)
 
     # ── Correlation edges (existing logic) ─────────────────────────────
+    from data.agents.edge_confidence import score_edge
+
     series_a = row["series_a"]
     series_b = row["series_b"]
     label_a = classify_series(series_a, asset_lookup, macro_lookup)
@@ -161,6 +163,13 @@ def _build_edge(row: dict[str, Any],
     if series_a > series_b:
         series_a, series_b = series_b, series_a
         label_a, label_b = label_b, label_a
+
+    # Discovery provenance — carried through to Neo4j edges
+    provenance = {
+        "discovery_id": row.get("id"),
+        "run_id": row.get("run_id"),
+        "discovered_at": row.get("computed_at"),
+    }
 
     base = {
         "pearson_r": row.get("pearson_r", 0),
@@ -172,18 +181,20 @@ def _build_edge(row: dict[str, Any],
         "relationship_type": row.get("relationship_type", "discovered"),
         "factor_group": None,
         "beta": None,
+        **provenance,
     }
 
     edges = []
 
     # 1. Always create CORRELATED_WITH
+    corr_props = {**base, "rel_type": "CORRELATED_WITH"}
+    corr_props["confidence"] = score_edge(corr_props)
     edges.append({
         "source_id": series_a,
         "source_label": label_a,
         "target_id": series_b,
         "target_label": label_b,
-        "rel_type": "CORRELATED_WITH",
-        **base,
+        **corr_props,
     })
 
     # 2. If Granger-causal, also create directed CAUSES edge
@@ -193,13 +204,14 @@ def _build_edge(row: dict[str, Any],
         orig_b = row["series_b"]
         orig_label_a = classify_series(orig_a, asset_lookup, macro_lookup)
         orig_label_b = classify_series(orig_b, asset_lookup, macro_lookup)
+        causal_props = {**base, "rel_type": "CAUSES"}
+        causal_props["confidence"] = score_edge(causal_props)
         edges.append({
             "source_id": orig_a,
             "source_label": orig_label_a,
             "target_id": orig_b,
             "target_label": orig_label_b,
-            "rel_type": "CAUSES",
-            **base,
+            **causal_props,
         })
 
     return edges
@@ -221,6 +233,8 @@ def _build_sensitivity_edge(row: dict[str, Any],
     Returns:
         Single-element list with the SENSITIVE_TO edge dict.
     """
+    from data.agents.edge_confidence import score_edge
+
     series_a = row["series_a"]  # asset
     series_b = row["series_b"]  # macro factor
     label_a = classify_series(series_a, asset_lookup, macro_lookup)
@@ -232,11 +246,7 @@ def _build_sensitivity_edge(row: dict[str, Any],
     # Beta is stored in mutual_info field for sensitivity discoveries
     beta = row.get("mutual_info")
 
-    return [{
-        "source_id": series_a,
-        "source_label": label_a,
-        "target_id": series_b,
-        "target_label": label_b,
+    props = {
         "rel_type": "SENSITIVE_TO",
         "pearson_r": row.get("pearson_r", 0),
         "lag_days": row.get("lag_days", 0),
@@ -247,6 +257,18 @@ def _build_sensitivity_edge(row: dict[str, Any],
         "relationship_type": rel_type_raw,
         "factor_group": factor_group,
         "beta": beta,
+        "discovery_id": row.get("id"),
+        "run_id": row.get("run_id"),
+        "discovered_at": row.get("computed_at"),
+    }
+    props["confidence"] = score_edge(props)
+
+    return [{
+        "source_id": series_a,
+        "source_label": label_a,
+        "target_id": series_b,
+        "target_label": label_b,
+        **props,
     }]
 
 

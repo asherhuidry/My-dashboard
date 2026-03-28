@@ -525,6 +525,12 @@ def batch_merge_edges(edges: list[dict[str, Any]]) -> int:
                 MATCH (a:{src_label} {{{src_key}: e.source_id}})
                 MATCH (b:{tgt_label} {{{tgt_key}: e.target_id}})
                 {merge_clause}
+                ON CREATE SET
+                    r.first_seen_at   = datetime(),
+                    r.evidence_count  = 1
+                ON MATCH SET
+                    r.evidence_count    = coalesce(r.evidence_count, 0) + 1,
+                    r.last_confirmed_at = datetime()
                 SET r.pearson_r         = e.pearson_r,
                     r.lag_days          = e.lag_days,
                     r.granger_p         = e.granger_p,
@@ -534,6 +540,10 @@ def batch_merge_edges(edges: list[dict[str, Any]]) -> int:
                     r.relationship_type = e.relationship_type,
                     r.factor_group      = e.factor_group,
                     r.beta              = e.beta,
+                    r.confidence        = e.confidence,
+                    r.discovery_id      = e.discovery_id,
+                    r.run_id            = e.run_id,
+                    r.discovered_at     = e.discovered_at,
                     r.updated_at        = datetime()
             """
             s.run(cypher, edges=batch)

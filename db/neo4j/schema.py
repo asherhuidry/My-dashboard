@@ -31,6 +31,7 @@ class RelType:
     """All relationship type constants used in the FinBrain graph."""
     CORRELATED_WITH = "CORRELATED_WITH"   # Asset ↔ Asset
     CAUSES = "CAUSES"                     # MacroIndicator → Asset or Event → Asset
+    SENSITIVE_TO = "SENSITIVE_TO"         # Asset → MacroIndicator (factor exposure)
     BELONGS_TO = "BELONGS_TO"             # Asset → Sector
     GENERATES = "GENERATES"               # Model → Signal
     TRAINED_ON = "TRAINED_ON"             # Model → Asset
