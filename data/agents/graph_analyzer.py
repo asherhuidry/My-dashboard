@@ -48,14 +48,18 @@ def analyze_graph_structure() -> dict[str, Any]:
 
     Returns:
         Dict with keys: exposure_profiles, regime_divergence,
-        bridge_factors, centrality.
+        bridge_factors, centrality, sector_stress, earnings_exposure.
     """
-    return {
+    per_asset = {
         "exposure_profiles": analyze_exposure_profiles(),
         "regime_divergence": analyze_regime_divergence(),
         "bridge_factors":    analyze_bridge_factors(),
         "centrality":        analyze_centrality(),
     }
+    # Sector and earnings analyses build on per-asset results
+    per_asset["sector_stress"] = analyze_sector_stress(per_asset)
+    per_asset["earnings_exposure"] = analyze_earnings_exposure(per_asset)
+    return per_asset
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -333,7 +337,251 @@ def analyze_centrality(top_n: int = 25) -> dict[str, Any]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 5. Structural snapshots — persistence and week-over-week diff
+# 5. Sector stress aggregation
+# ─────────────────────────────────────────────────────────────────────────────
+
+_SECTOR_MEMBERSHIP_QUERY = (
+    "MATCH (a)-[:BELONGS_TO]->(s:Sector) "
+    "WHERE a:Asset "
+    "RETURN coalesce(a.ticker, a.symbol) AS asset, s.name AS sector"
+)
+
+
+def analyze_sector_stress(
+    analysis: dict[str, Any],
+    top_n: int = 15,
+) -> dict[str, Any]:
+    """Aggregate per-asset intelligence up to sector level.
+
+    Combines regime divergence, bridge factor exposure, and exposure
+    similarity for each sector's member assets to produce a sector
+    stress score.  High-stress sectors have members with large regime
+    shifts, heavy bridge factor exposure, and convergent exposure profiles.
+
+    Args:
+        analysis: Output of the per-asset analyses (regime_divergence,
+                  bridge_factors, exposure_profiles).
+        top_n:    Number of sectors to return.
+
+    Returns:
+        Dict with ranked sectors, each having a stress score and
+        contributing components.
+    """
+    # 1. Get sector memberships from the graph
+    try:
+        rows = run_read_query(_SECTOR_MEMBERSHIP_QUERY, {})
+    except Exception as exc:
+        log.warning("Sector membership query failed: %s", exc)
+        return {"sectors": [], "sector_count": 0}
+
+    if not rows:
+        return {"sectors": [], "sector_count": 0}
+
+    # Build sector → {members}
+    sector_members: dict[str, set[str]] = {}
+    for r in rows:
+        sector_members.setdefault(r["sector"], set()).add(r["asset"])
+
+    # 2. Aggregate regime divergence per sector
+    divs = analysis.get("regime_divergence", {}).get("divergences", [])
+    asset_div: dict[str, float] = {}
+    asset_div_count: dict[str, int] = {}
+    for d in divs:
+        a = d.get("asset", "")
+        asset_div[a] = asset_div.get(a, 0) + d.get("abs_change", 0)
+        asset_div_count[a] = asset_div_count.get(a, 0) + 1
+
+    # 3. Aggregate bridge factor exposure per sector
+    bridges = analysis.get("bridge_factors", {}).get("bridges", [])
+    asset_bridge_exposure: dict[str, int] = {}
+    for b in bridges:
+        if b.get("is_bridge"):
+            for a in b.get("assets", []):
+                asset_bridge_exposure[a] = asset_bridge_exposure.get(a, 0) + 1
+
+    # 4. Compute per-sector scores
+    sectors: list[dict[str, Any]] = []
+    for sector_name, members in sector_members.items():
+        member_list = sorted(members)
+        n = len(member_list)
+        if n == 0:
+            continue
+
+        # Regime divergence: mean total divergence across members
+        member_divs = [asset_div.get(m, 0) for m in member_list]
+        mean_divergence = float(np.mean(member_divs)) if member_divs else 0
+        max_divergence = max(member_divs) if member_divs else 0
+        most_divergent = member_list[member_divs.index(max_divergence)] if max_divergence > 0 else None
+
+        # Bridge exposure: mean bridge factor count across members
+        member_bridges = [asset_bridge_exposure.get(m, 0) for m in member_list]
+        mean_bridge_exposure = float(np.mean(member_bridges)) if member_bridges else 0
+
+        # Divergence breadth: how many members have ANY regime divergence
+        members_with_div = sum(1 for m in member_list if asset_div.get(m, 0) > 0)
+        div_breadth = members_with_div / n if n > 0 else 0
+
+        # Stress score: weighted combination (regime divergence dominates)
+        stress_score = round(
+            0.50 * min(mean_divergence / 0.3, 1.0)     # divergence intensity
+            + 0.25 * min(mean_bridge_exposure / 3.0, 1.0)  # bridge exposure
+            + 0.25 * div_breadth,                          # divergence breadth
+            4,
+        )
+
+        sectors.append({
+            "sector": sector_name,
+            "stress_score": stress_score,
+            "member_count": n,
+            "mean_regime_divergence": round(mean_divergence, 6),
+            "max_regime_divergence": round(max_divergence, 6),
+            "most_divergent_member": most_divergent,
+            "mean_bridge_exposure": round(mean_bridge_exposure, 3),
+            "divergence_breadth": round(div_breadth, 3),
+            "members": member_list,
+        })
+
+    sectors.sort(key=lambda s: s["stress_score"], reverse=True)
+
+    log.info(
+        "Sector stress: %d sectors analyzed, top=%s (%.3f)",
+        len(sectors),
+        sectors[0]["sector"] if sectors else "?",
+        sectors[0]["stress_score"] if sectors else 0,
+    )
+    return {
+        "sectors": sectors[:top_n],
+        "sector_count": len(sectors),
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 6. Earnings exposure analysis
+# ─────────────────────────────────────────────────────────────────────────────
+
+_EARNINGS_QUERY = (
+    "MATCH (a:Asset)-[:REPORTS]->(e:Event) "
+    "WHERE e.event_date >= $from_date AND e.event_date <= $to_date "
+    "RETURN coalesce(a.ticker, a.symbol) AS asset, "
+    "       e.event_id AS event_id, e.event_date AS event_date, "
+    "       e.eps_estimate AS eps_estimate, e.eps_actual AS eps_actual, "
+    "       e.eps_surprise_pct AS surprise_pct, e.hour AS hour "
+    "ORDER BY e.event_date"
+)
+
+
+def analyze_earnings_exposure(
+    analysis: dict[str, Any],
+    lookahead_days: int = 21,
+    lookback_days: int = 7,
+) -> dict[str, Any]:
+    """Find upcoming earnings events for structurally important assets.
+
+    Crosses earnings calendar data with centrality and regime divergence
+    to flag which upcoming earnings events matter most for the graph.
+
+    An earnings event is high-impact if the reporting asset:
+    - Has high degree centrality (structural hub)
+    - Has large regime divergence (hidden crisis sensitivity)
+    - Is connected to many bridge factors
+
+    Args:
+        analysis:        Output of the per-asset analyses.
+        lookahead_days:  Days ahead to scan for upcoming earnings.
+        lookback_days:   Days back to include recent results.
+
+    Returns:
+        Dict with upcoming events ranked by structural importance.
+    """
+    from datetime import date, timedelta
+
+    today = date.today()
+    from_date = (today - timedelta(days=lookback_days)).isoformat()
+    to_date = (today + timedelta(days=lookahead_days)).isoformat()
+
+    try:
+        rows = run_read_query(_EARNINGS_QUERY, {
+            "from_date": from_date, "to_date": to_date,
+        })
+    except Exception as exc:
+        log.warning("Earnings exposure query failed: %s", exc)
+        return {"events": [], "event_count": 0}
+
+    if not rows:
+        return {"events": [], "event_count": 0}
+
+    # Build asset importance scores from existing analysis
+    centrality_map: dict[str, int] = {}
+    for r in analysis.get("centrality", {}).get("ranking", []):
+        if r.get("label") == "Asset":
+            centrality_map[r["node_id"]] = r["degree"]
+
+    # Regime divergence total per asset
+    asset_div: dict[str, float] = {}
+    for d in analysis.get("regime_divergence", {}).get("divergences", []):
+        a = d.get("asset", "")
+        asset_div[a] = asset_div.get(a, 0) + d.get("abs_change", 0)
+
+    # Bridge exposure per asset
+    asset_bridge: dict[str, int] = {}
+    for b in analysis.get("bridge_factors", {}).get("bridges", []):
+        if b.get("is_bridge"):
+            for a in b.get("assets", []):
+                asset_bridge[a] = asset_bridge.get(a, 0) + 1
+
+    events: list[dict[str, Any]] = []
+    for r in rows:
+        asset = r["asset"]
+        degree = centrality_map.get(asset, 0)
+        divergence = asset_div.get(asset, 0)
+        bridges = asset_bridge.get(asset, 0)
+
+        # Structural importance: weighted score
+        importance = round(
+            0.40 * min(degree / 10.0, 1.0)
+            + 0.35 * min(divergence / 0.3, 1.0)
+            + 0.25 * min(bridges / 3.0, 1.0),
+            4,
+        )
+
+        is_upcoming = r["event_date"] >= today.isoformat() if isinstance(r["event_date"], str) else True
+        has_actuals = r.get("eps_actual") is not None
+
+        events.append({
+            "asset": asset,
+            "event_id": r["event_id"],
+            "event_date": r["event_date"],
+            "eps_estimate": r.get("eps_estimate"),
+            "eps_actual": r.get("eps_actual"),
+            "surprise_pct": r.get("surprise_pct"),
+            "hour": r.get("hour"),
+            "is_upcoming": is_upcoming,
+            "has_actuals": has_actuals,
+            "structural_importance": importance,
+            "degree_centrality": degree,
+            "regime_divergence": round(divergence, 4),
+            "bridge_exposure": bridges,
+        })
+
+    events.sort(key=lambda e: e["structural_importance"], reverse=True)
+
+    upcoming = [e for e in events if e["is_upcoming"]]
+    recent = [e for e in events if not e["is_upcoming"] and e["has_actuals"]]
+
+    log.info(
+        "Earnings exposure: %d events (%d upcoming, %d recent with actuals)",
+        len(events), len(upcoming), len(recent),
+    )
+    return {
+        "events": events,
+        "event_count": len(events),
+        "upcoming_count": len(upcoming),
+        "recent_with_actuals": len(recent),
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 7. Structural snapshots — persistence and week-over-week diff
 # ─────────────────────────────────────────────────────────────────────────────
 
 def compute_summary_metrics(analysis: dict[str, Any]) -> dict[str, Any]:
@@ -410,6 +658,27 @@ def compute_summary_metrics(analysis: dict[str, Any]) -> dict[str, Any]:
         round(float(np.mean(degrees)), 2) if degrees else None
     )
 
+    # ── Sector stress ─────────────────────────────────────────────
+    ss = analysis.get("sector_stress", {})
+    sectors = ss.get("sectors", [])
+    stress_scores = [s["stress_score"] for s in sectors]
+    metrics["sector_count"] = ss.get("sector_count", 0)
+    metrics["sector_stress_max"] = max(stress_scores) if stress_scores else None
+    metrics["sector_stress_mean"] = (
+        round(float(np.mean(stress_scores)), 4) if stress_scores else None
+    )
+    metrics["sector_most_stressed"] = (
+        sectors[0]["sector"] if sectors else None
+    )
+
+    # ── Earnings exposure ─────────────────────────────────────────
+    ee = analysis.get("earnings_exposure", {})
+    metrics["earnings_upcoming"] = ee.get("upcoming_count", 0)
+    metrics["earnings_recent_actuals"] = ee.get("recent_with_actuals", 0)
+    events = ee.get("events", [])
+    high_impact = [e for e in events if e.get("structural_importance", 0) >= 0.5]
+    metrics["earnings_high_impact"] = len(high_impact)
+
     return metrics
 
 
@@ -440,6 +709,8 @@ def compute_snapshot_diff(
         "regime_amplified_pct",
         "bridge_count", "bridge_max_span",
         "centrality_top_degree", "centrality_mean_degree",
+        "sector_stress_max", "sector_stress_mean",
+        "earnings_upcoming", "earnings_high_impact",
     ]
     deltas: dict[str, float | None] = {}
     for key in delta_keys:
@@ -466,6 +737,9 @@ def compute_snapshot_diff(
     )
     changes["regime_top_shift_changed"] = (
         current.get("regime_top_shift") != previous.get("regime_top_shift")
+    )
+    changes["sector_most_stressed_changed"] = (
+        current.get("sector_most_stressed") != previous.get("sector_most_stressed")
     )
 
     return changes
@@ -516,10 +790,12 @@ def snapshot_graph_structure(run_id: str | None = None) -> dict[str, Any]:
         "run_id": run_id,
         "metrics": metrics,
         "analysis": {
-            "exposure_profiles": analysis["exposure_profiles"],
-            "regime_divergence": analysis["regime_divergence"],
-            "bridge_factors":    analysis["bridge_factors"],
-            "centrality":        analysis["centrality"],
+            "exposure_profiles":  analysis["exposure_profiles"],
+            "regime_divergence":  analysis["regime_divergence"],
+            "bridge_factors":     analysis["bridge_factors"],
+            "centrality":         analysis["centrality"],
+            "sector_stress":      analysis.get("sector_stress", {}),
+            "earnings_exposure":  analysis.get("earnings_exposure", {}),
         },
     }
     if diff is not None:

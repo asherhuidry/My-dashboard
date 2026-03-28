@@ -330,6 +330,9 @@ _MONITORED_METRICS: list[str] = [
     "bridge_max_span",
     "centrality_top_degree",
     "centrality_mean_degree",
+    "sector_stress_max",
+    "sector_stress_mean",
+    "earnings_high_impact",
 ]
 
 # Human-readable descriptions for anomaly reports
@@ -343,6 +346,10 @@ _METRIC_LABELS: dict[str, str] = {
     "bridge_max_span":         "max bridge asset-class span",
     "centrality_top_degree":   "top node degree centrality",
     "centrality_mean_degree":  "mean degree centrality",
+    "sector_stress_max":       "max sector stress score",
+    "sector_stress_mean":      "mean sector stress score",
+    "earnings_upcoming":       "upcoming earnings events",
+    "earnings_high_impact":    "high-impact earnings events",
 }
 
 # z-score threshold for flagging an anomaly
@@ -642,6 +649,93 @@ def rank_insights(
                     "evidence": confidence_stats,
                 })
 
+    # ── Sector stress insights ──────────────────────────────────────
+    sectors = analysis.get("sector_stress", {}).get("sectors", [])
+    for s in sectors[:3]:
+        if s["stress_score"] >= 0.60:
+            insights.append({
+                "type": "sector_stress",
+                "priority": 1,
+                "title": (
+                    f"{s['sector']} sector under high structural stress "
+                    f"(score {s['stress_score']:.2f})"
+                ),
+                "detail": (
+                    f"{s['member_count']} members, mean regime divergence "
+                    f"{s['mean_regime_divergence']:.3f}, "
+                    f"{s['divergence_breadth']:.0%} of members affected. "
+                    f"Most divergent: {s['most_divergent_member'] or 'N/A'}."
+                ),
+                "evidence": s,
+            })
+        elif s["stress_score"] >= 0.35:
+            insights.append({
+                "type": "sector_stress",
+                "priority": 2,
+                "title": (
+                    f"{s['sector']} sector shows moderate stress "
+                    f"(score {s['stress_score']:.2f})"
+                ),
+                "detail": (
+                    f"{s['member_count']} members, divergence breadth "
+                    f"{s['divergence_breadth']:.0%}."
+                ),
+                "evidence": s,
+            })
+
+    # ── Earnings catalyst insights ────────────────────────────────
+    earnings = analysis.get("earnings_exposure", {}).get("events", [])
+    upcoming_important = [
+        e for e in earnings
+        if e.get("is_upcoming") and e.get("structural_importance", 0) >= 0.4
+    ]
+    if upcoming_important:
+        top = upcoming_important[0]
+        insights.append({
+            "type": "earnings_catalyst",
+            "priority": 1 if top["structural_importance"] >= 0.6 else 2,
+            "title": (
+                f"UPCOMING: {top['asset']} earnings on {top['event_date']} "
+                f"(structural importance {top['structural_importance']:.2f})"
+            ),
+            "detail": (
+                f"Degree centrality {top['degree_centrality']}, "
+                f"regime divergence {top['regime_divergence']:.3f}, "
+                f"bridge exposure {top['bridge_exposure']}. "
+                f"{len(upcoming_important)} high-impact events in window."
+            ),
+            "evidence": {
+                "top_event": top,
+                "total_high_impact": len(upcoming_important),
+            },
+        })
+
+    # Recent earnings surprises with structural importance
+    recent_surprises = [
+        e for e in earnings
+        if not e.get("is_upcoming")
+        and e.get("has_actuals")
+        and e.get("surprise_pct") is not None
+        and abs(e.get("surprise_pct", 0)) >= 5.0
+        and e.get("structural_importance", 0) >= 0.3
+    ]
+    for rs in recent_surprises[:2]:
+        direction = "beat" if rs["surprise_pct"] > 0 else "miss"
+        insights.append({
+            "type": "earnings_surprise",
+            "priority": 2,
+            "title": (
+                f"{rs['asset']} earnings {direction} "
+                f"({rs['surprise_pct']:+.1f}%) — structurally connected"
+            ),
+            "detail": (
+                f"Degree {rs['degree_centrality']}, "
+                f"regime divergence {rs['regime_divergence']:.3f}. "
+                f"Surprise may propagate through graph connections."
+            ),
+            "evidence": rs,
+        })
+
     insights.sort(key=lambda i: i["priority"])
     return insights
 
@@ -696,6 +790,28 @@ def compute_graph_reasoning_summary(
                     f"{top_bridge['class_count']} asset classes."
                 ),
             }
+
+    # ── Most stressed sector ──────────────────────────────────────────
+    sectors = analysis.get("sector_stress", {}).get("sectors", [])
+    if sectors:
+        top_sector = sectors[0]
+        reasoning["most_stressed_sector"] = {
+            "sector": top_sector["sector"],
+            "stress_score": top_sector["stress_score"],
+            "member_count": top_sector["member_count"],
+            "mean_regime_divergence": top_sector["mean_regime_divergence"],
+            "most_divergent_member": top_sector.get("most_divergent_member"),
+            "divergence_breadth": top_sector["divergence_breadth"],
+            "narrative": (
+                f"{top_sector['sector']} is the most structurally stressed sector "
+                f"(score {top_sector['stress_score']:.2f}). "
+                f"{top_sector['divergence_breadth']:.0%} of its "
+                f"{top_sector['member_count']} members show regime sensitivity shifts"
+                + (f", led by {top_sector['most_divergent_member']}"
+                   if top_sector.get("most_divergent_member") else "")
+                + "."
+            ),
+        }
 
     # ── Most exposed asset class ───────────────────────────────────────
     divs = analysis.get("regime_divergence", {}).get("divergences", [])
