@@ -1,41 +1,58 @@
-"""FinBrain asset universe — expanded to 200+ assets, 65+ macro series.
+"""FinBrain asset universe — 350+ assets, 67 macro series.
 
 Every data connector imports from here so the universe lives in one place.
 """
 from __future__ import annotations
 
-# ── Equities: S&P 500 top 80 + sector leaders ─────────────────────────────────
+# ── Equities: S&P 500 top 130 + sector leaders ────────────────────────────────
 EQUITIES: list[str] = [
     # Mega-cap tech
     "AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "GOOG", "TSLA",
     "ADBE", "CRM",  "ORCL", "AMD",  "INTC", "QCOM",  "AVGO", "TXN",
     "MU",   "AMAT", "LRCX", "KLAC",
+    # Software & Cloud
+    "NOW",  "SNOW", "PLTR", "PANW", "CRWD", "ZS",    "NET",  "DDOG",
+    "SHOP", "SQ",   "UBER", "ABNB",
     # Financials
     "JPM",  "BAC",  "WFC",  "GS",   "MS",   "BLK",   "C",    "AXP",
     "V",    "MA",   "COF",  "SCHW", "USB",  "BX",    "KKR",
+    "PNC",  "TFC",  "AIG",  "MET",  "PRU",  "ICE",   "CME",
     # Healthcare & Biotech
     "JNJ",  "UNH",  "LLY",  "ABT",  "TMO",  "MRK",   "ABBV", "BMY",
     "AMGN", "GILD", "REGN", "VRTX", "BIIB", "MRNA",  "PFE",
+    "ISRG", "MDT",  "SYK",  "EW",   "ZTS",
     # Consumer
     "WMT",  "COST", "HD",   "TGT",  "LOW",  "NKE",   "MCD",  "SBUX",
     "PG",   "KO",   "PEP",  "PM",   "MO",   "CL",
+    "EL",   "LULU", "CMG",  "YUM",  "DPZ",  "MNST",
     # Industrials & Defense
     "LMT",  "RTX",  "NOC",  "GD",   "BA",   "CAT",   "DE",   "HON",
     "UPS",  "FDX",  "GE",   "MMM",
+    "WM",   "RSG",  "EMR",  "ITW",  "ETN",  "ROK",
     # Energy
     "XOM",  "CVX",  "COP",  "SLB",  "EOG",  "MPC",   "VLO",  "PSX",
+    "OXY",  "DVN",  "HAL",  "FANG",
     # Real Estate / Infrastructure
     "AMT",  "PLD",  "EQIX", "CCI",  "SPG",
+    "O",    "DLR",  "WELL", "PSA",
+    # Utilities
+    "NEE",  "DUK",  "SO",   "D",    "AEP",  "SRE",
+    # Materials
+    "LIN",  "APD",  "ECL",  "NEM",  "FCX",  "DOW",   "DD",
+    # Telecom / Media
+    "DIS",  "CMCSA","NFLX", "T",    "VZ",   "TMUS",  "CHTR",
     # Diversified
-    "BRK-B","LIN",  "APD",  "ECL",  "INTU", "DHR",   "NEE",
+    "BRK-B","INTU", "DHR",
 ]
 
-# ── Crypto: top 20 by market cap (Yahoo Finance format) ───────────────────────
+# ── Crypto: top 30 by market cap (Yahoo Finance format) ───────────────────────
 CRYPTO_YF: list[str] = [
     "BTC-USD", "ETH-USD", "BNB-USD",  "SOL-USD",  "XRP-USD",
     "ADA-USD", "AVAX-USD","DOGE-USD", "DOT-USD",  "MATIC-USD",
     "LINK-USD","ATOM-USD","LTC-USD",  "BCH-USD",  "NEAR-USD",
     "UNI-USD", "ICP-USD", "FIL-USD",  "APT-USD",  "ARB-USD",
+    "OP-USD",  "INJ-USD", "SUI-USD",  "TIA-USD",  "SEI-USD",
+    "RNDR-USD","FET-USD", "AAVE-USD", "MKR-USD",  "PEPE-USD",
 ]
 
 # ── Crypto: CoinGecko format — (coin_id, ticker) tuples ─────────────────────
@@ -47,6 +64,10 @@ CRYPTO: list[tuple[str, str]] = [
     ("litecoin",     "LTC"),  ("bitcoin-cash", "BCH"),  ("near",         "NEAR"),
     ("uniswap",      "UNI"),  ("internet-computer","ICP"),("filecoin",   "FIL"),
     ("aptos",        "APT"),  ("arbitrum",     "ARB"),
+    ("optimism",     "OP"),   ("injective-protocol","INJ"),("sui",       "SUI"),
+    ("celestia",     "TIA"),  ("sei-network",  "SEI"),
+    ("render-token", "RNDR"), ("fetch-ai",     "FET"),  ("aave",        "AAVE"),
+    ("maker",        "MKR"),  ("pepe",         "PEPE"),
 ]
 
 # ── ETFs: sector, factor, volatility, rates, international ────────────────────
@@ -59,27 +80,45 @@ ETFS: list[str] = [
     "MTUM", "VLUE", "QUAL", "USMV", "IWF", "IWD", "SIZE",
     # Fixed income
     "AGG", "BND", "TLT", "IEF", "SHY", "HYG", "LQD", "EMB", "BKLN",
+    "TIP", "GOVT", "MUB", "VCSH", "VCIT",
     # Volatility & alternatives
     "GLD", "SLV", "USO", "UNG", "DBC", "PDBC",
+    "GBTC", "ETHE", "BITO",
     # International
     "EEM", "EFA", "FXI", "EWJ", "EWZ", "MCHI", "INDA",
+    "EWG", "EWT", "EWY", "EWA", "EWC", "EWU", "VWO",
     # Thematic
     "ARKK", "SOXX", "IBB", "XBI", "ICLN",
+    "KWEB", "HACK", "BOTZ", "LIT",  "JETS", "XHB",  "KRE",
 ]
 
-# ── Forex: major + emerging ────────────────────────────────────────────────────
+# ── Forex: major + emerging + crosses ─────────────────────────────────────────
 FOREX: list[str] = [
+    # Major pairs
     "EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X",
-    "USDCAD=X", "USDCHF=X", "NZDUSD=X", "USDCNY=X",
-    "USDINR=X", "USDMXN=X", "USDBRL=X", "USDKRW=X",
-    "DX-Y.NYB",  # US Dollar Index
+    "USDCAD=X", "USDCHF=X", "NZDUSD=X",
+    # Emerging market
+    "USDCNY=X", "USDINR=X", "USDMXN=X", "USDBRL=X", "USDKRW=X",
+    "USDTRY=X", "USDZAR=X", "USDSGD=X", "USDHKD=X",
+    # Crosses
+    "EURGBP=X", "EURJPY=X", "GBPJPY=X", "AUDJPY=X",
+    # Dollar index
+    "DX-Y.NYB",
 ]
 
 # ── Commodities: futures + spot ────────────────────────────────────────────────
 COMMODITIES: list[str] = [
-    "GC=F",  "SI=F",  "CL=F",  "BZ=F",  "NG=F",
-    "HG=F",  "ZC=F",  "ZW=F",  "ZS=F",  "KC=F",
-    "LBS=F", "PL=F",  "PA=F",  "ALI=F",
+    # Precious metals
+    "GC=F",  "SI=F",  "PL=F",  "PA=F",
+    # Energy
+    "CL=F",  "BZ=F",  "NG=F",  "RB=F",  "HO=F",
+    # Base metals
+    "HG=F",  "ALI=F",
+    # Agriculture
+    "ZC=F",  "ZW=F",  "ZS=F",  "KC=F",  "CT=F",  "SB=F",
+    "LBS=F", "CC=F",  "OJ=F",
+    # Livestock
+    "LE=F",  "HE=F",
 ]
 
 # ── FRED macro series (67 series) — (series_id, label, frequency) ─────────────

@@ -61,9 +61,9 @@ async def get_correlations(
         driver = get_driver()
         with driver.session() as session:
             result = session.run(
-                "MATCH (a:Asset {symbol: $sym})-[r:CORRELATES_WITH]-(b) "
+                "MATCH (a:Asset {ticker: $sym})-[r:CORRELATES_WITH]-(b) "
                 "WHERE abs(r.pearson_r) >= $min_r "
-                "RETURN b.symbol as series_b, r.lag_days as lag, "
+                "RETURN b.ticker as series_b, r.lag_days as lag, "
                 "       r.pearson_r as r_val, r.strength as strength, "
                 "       r.type as rel_type, r.granger_p as granger "
                 "ORDER BY abs(r.pearson_r) DESC LIMIT $limit",

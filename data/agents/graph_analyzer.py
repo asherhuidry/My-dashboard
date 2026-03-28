@@ -343,7 +343,7 @@ def analyze_centrality(top_n: int = 25) -> dict[str, Any]:
 _SECTOR_MEMBERSHIP_QUERY = (
     "MATCH (a)-[:BELONGS_TO]->(s:Sector) "
     "WHERE a:Asset "
-    "RETURN coalesce(a.ticker, a.symbol) AS asset, s.name AS sector"
+    "RETURN a.ticker AS asset, s.name AS sector"
 )
 
 
@@ -462,7 +462,7 @@ def analyze_sector_stress(
 _EARNINGS_QUERY = (
     "MATCH (a:Asset)-[:REPORTS]->(e:Event) "
     "WHERE e.event_date >= $from_date AND e.event_date <= $to_date "
-    "RETURN coalesce(a.ticker, a.symbol) AS asset, "
+    "RETURN a.ticker AS asset, "
     "       e.event_id AS event_id, e.event_date AS event_date, "
     "       e.eps_estimate AS eps_estimate, e.eps_actual AS eps_actual, "
     "       e.eps_surprise_pct AS surprise_pct, e.hour AS hour "

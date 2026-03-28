@@ -82,10 +82,25 @@ TICKER_SECTOR_MAP: dict[str, tuple[str, str]] = {
     "LRCX": ("Information Technology", "Semiconductors"),
     "KLAC": ("Information Technology", "Semiconductors"),
     "INTU": ("Information Technology", "Software"),
+    "NOW":  ("Information Technology", "Software"),
+    "SNOW": ("Information Technology", "Software"),
+    "PLTR": ("Information Technology", "Software"),
+    "PANW": ("Information Technology", "Software"),
+    "CRWD": ("Information Technology", "Software"),
+    "ZS":   ("Information Technology", "Software"),
+    "NET":  ("Information Technology", "Software"),
+    "DDOG": ("Information Technology", "Software"),
     # ── Communication Services ──
     "GOOGL": ("Communication Services", "Interactive Media"),
     "GOOG":  ("Communication Services", "Interactive Media"),
     "META":  ("Communication Services", "Interactive Media"),
+    "DIS":   ("Communication Services", "Entertainment"),
+    "CMCSA": ("Communication Services", "Cable & Satellite"),
+    "NFLX":  ("Communication Services", "Entertainment"),
+    "T":     ("Communication Services", "Integrated Telecom"),
+    "VZ":    ("Communication Services", "Integrated Telecom"),
+    "TMUS":  ("Communication Services", "Wireless Telecom"),
+    "CHTR":  ("Communication Services", "Cable & Satellite"),
     # ── Consumer Discretionary ──
     "AMZN": ("Consumer Discretionary", "Broadline Retail"),
     "TSLA": ("Consumer Discretionary", "Automobiles"),
@@ -95,6 +110,14 @@ TICKER_SECTOR_MAP: dict[str, tuple[str, str]] = {
     "MCD":  ("Consumer Discretionary", "Restaurants"),
     "SBUX": ("Consumer Discretionary", "Restaurants"),
     "TGT":  ("Consumer Discretionary", "General Merchandise"),
+    "LULU": ("Consumer Discretionary", "Apparel"),
+    "CMG":  ("Consumer Discretionary", "Restaurants"),
+    "YUM":  ("Consumer Discretionary", "Restaurants"),
+    "DPZ":  ("Consumer Discretionary", "Restaurants"),
+    "SHOP": ("Consumer Discretionary", "Broadline Retail"),
+    "SQ":   ("Consumer Discretionary", "Broadline Retail"),
+    "UBER": ("Consumer Discretionary", "Ground Transportation"),
+    "ABNB": ("Consumer Discretionary", "Hotels & Resorts"),
     # ── Consumer Staples ──
     "WMT":  ("Consumer Staples", "Consumer Staples Distribution"),
     "COST": ("Consumer Staples", "Consumer Staples Distribution"),
@@ -104,6 +127,8 @@ TICKER_SECTOR_MAP: dict[str, tuple[str, str]] = {
     "PM":   ("Consumer Staples", "Tobacco"),
     "MO":   ("Consumer Staples", "Tobacco"),
     "CL":   ("Consumer Staples", "Household Products"),
+    "EL":   ("Consumer Staples", "Personal Care Products"),
+    "MNST": ("Consumer Staples", "Beverages"),
     # ── Financials ──
     "JPM":  ("Financials", "Diversified Banks"),
     "BAC":  ("Financials", "Diversified Banks"),
@@ -120,6 +145,13 @@ TICKER_SECTOR_MAP: dict[str, tuple[str, str]] = {
     "USB":  ("Financials", "Regional Banks"),
     "BX":   ("Financials", "Asset Management"),
     "KKR":  ("Financials", "Asset Management"),
+    "PNC":  ("Financials", "Regional Banks"),
+    "TFC":  ("Financials", "Regional Banks"),
+    "AIG":  ("Financials", "Insurance"),
+    "MET":  ("Financials", "Insurance"),
+    "PRU":  ("Financials", "Insurance"),
+    "ICE":  ("Financials", "Capital Markets"),
+    "CME":  ("Financials", "Capital Markets"),
     # ── Healthcare ──
     "JNJ":  ("Healthcare", "Pharmaceuticals"),
     "UNH":  ("Healthcare", "Managed Healthcare"),
@@ -137,6 +169,11 @@ TICKER_SECTOR_MAP: dict[str, tuple[str, str]] = {
     "MRNA": ("Healthcare", "Biotechnology"),
     "PFE":  ("Healthcare", "Pharmaceuticals"),
     "DHR":  ("Healthcare", "Life Sciences Tools"),
+    "ISRG": ("Healthcare", "Healthcare Equipment"),
+    "MDT":  ("Healthcare", "Healthcare Equipment"),
+    "SYK":  ("Healthcare", "Healthcare Equipment"),
+    "EW":   ("Healthcare", "Healthcare Equipment"),
+    "ZTS":  ("Healthcare", "Pharmaceuticals"),
     # ── Industrials ──
     "LMT":  ("Industrials", "Aerospace & Defense"),
     "RTX":  ("Industrials", "Aerospace & Defense"),
@@ -150,6 +187,12 @@ TICKER_SECTOR_MAP: dict[str, tuple[str, str]] = {
     "FDX":  ("Industrials", "Air Freight & Logistics"),
     "GE":   ("Industrials", "Industrial Conglomerates"),
     "MMM":  ("Industrials", "Industrial Conglomerates"),
+    "WM":   ("Industrials", "Environmental Services"),
+    "RSG":  ("Industrials", "Environmental Services"),
+    "EMR":  ("Industrials", "Electrical Equipment"),
+    "ITW":  ("Industrials", "Industrial Machinery"),
+    "ETN":  ("Industrials", "Electrical Equipment"),
+    "ROK":  ("Industrials", "Industrial Machinery"),
     # ── Energy ──
     "XOM":  ("Energy", "Integrated Oil & Gas"),
     "CVX":  ("Energy", "Integrated Oil & Gas"),
@@ -159,18 +202,35 @@ TICKER_SECTOR_MAP: dict[str, tuple[str, str]] = {
     "MPC":  ("Energy", "Oil & Gas Refining"),
     "VLO":  ("Energy", "Oil & Gas Refining"),
     "PSX":  ("Energy", "Oil & Gas Refining"),
+    "OXY":  ("Energy", "Exploration & Production"),
+    "DVN":  ("Energy", "Exploration & Production"),
+    "HAL":  ("Energy", "Oil & Gas Equipment"),
+    "FANG": ("Energy", "Exploration & Production"),
     # ── Real Estate ──
     "AMT":  ("Real Estate", "Telecom Tower REITs"),
     "PLD":  ("Real Estate", "Industrial REITs"),
     "EQIX": ("Real Estate", "Data Center REITs"),
     "CCI":  ("Real Estate", "Telecom Tower REITs"),
     "SPG":  ("Real Estate", "Retail REITs"),
+    "O":    ("Real Estate", "Retail REITs"),
+    "DLR":  ("Real Estate", "Data Center REITs"),
+    "WELL": ("Real Estate", "Healthcare REITs"),
+    "PSA":  ("Real Estate", "Self-Storage REITs"),
     # ── Utilities ──
     "NEE":  ("Utilities", "Electric Utilities"),
+    "DUK":  ("Utilities", "Electric Utilities"),
+    "SO":   ("Utilities", "Electric Utilities"),
+    "D":    ("Utilities", "Electric Utilities"),
+    "AEP":  ("Utilities", "Electric Utilities"),
+    "SRE":  ("Utilities", "Multi-Utilities"),
     # ── Materials ──
     "LIN":  ("Materials", "Industrial Gases"),
     "APD":  ("Materials", "Industrial Gases"),
     "ECL":  ("Materials", "Specialty Chemicals"),
+    "NEM":  ("Materials", "Gold Mining"),
+    "FCX":  ("Materials", "Copper Mining"),
+    "DOW":  ("Materials", "Commodity Chemicals"),
+    "DD":   ("Materials", "Specialty Chemicals"),
     # ── Diversified / Conglomerates ──
     "BRK-B": ("Financials", "Multi-Sector Holdings"),
 }
@@ -340,7 +400,7 @@ def build_supply_chain_graph() -> dict[str, Any]:
                 # Ensure both company nodes exist
                 for sym in [supplier, customer]:
                     session.run(
-                        "MERGE (c:Company {symbol: $sym}) "
+                        "MERGE (c:Company {ticker: $sym}) "
                         "ON CREATE SET c.created_at = $ts",
                         sym=sym, ts=datetime.now(tz=timezone.utc).isoformat()
                     )
@@ -355,7 +415,7 @@ def build_supply_chain_graph() -> dict[str, Any]:
                     props["estimated_revenue_pct"] = rev_pct
 
                 session.run(
-                    "MATCH (a:Company {symbol:$sup}), (b:Company {symbol:$cus}) "
+                    "MATCH (a:Company {ticker:$sup}), (b:Company {ticker:$cus}) "
                     "MERGE (a)-[r:SUPPLIES_TO {product_category:$product}]->(b) "
                     "SET r += $props",
                     sup=supplier, cus=customer, product=product, props=props,
@@ -369,7 +429,7 @@ def build_supply_chain_graph() -> dict[str, Any]:
             try:
                 session.run(
                     "MERGE (m:MacroIndicator {id: $macro}) "
-                    "MERGE (e:Asset {symbol: $etf}) "
+                    "MERGE (e:Asset {ticker: $etf}) "
                     "MERGE (m)-[r:IMPACTS {direction:$dir, mechanism:$mech}]->(e) "
                     "SET r.updated_at = $ts",
                     macro=macro, etf=etf, dir=direction, mech=mechanism,
@@ -467,7 +527,7 @@ def materialize_sector_classification() -> dict[str, Any]:
         for ticker, (sector, industry) in TICKER_SECTOR_MAP.items():
             try:
                 session.run(
-                    "MERGE (a:Asset {symbol: $ticker}) "
+                    "MERGE (a:Asset {ticker: $ticker}) "
                     "ON CREATE SET a.created_at = $ts "
                     "WITH a "
                     "MATCH (i:Industry {name: $industry}) "
@@ -524,8 +584,8 @@ def build_correlation_edges(findings: list) -> dict[str, Any]:
         for f in findings:
             try:
                 session.run(
-                    "MERGE (a:Asset {symbol: $a}) "
-                    "MERGE (b:Asset {symbol: $b}) "
+                    "MERGE (a:Asset {ticker: $a}) "
+                    "MERGE (b:Asset {ticker: $b}) "
                     "MERGE (a)-[r:CORRELATES_WITH {lag_days: $lag}]->(b) "
                     "SET r.pearson_r = $r, r.strength = $s, r.granger_p = $g, "
                     "    r.type = $t, r.updated_at = $ts",

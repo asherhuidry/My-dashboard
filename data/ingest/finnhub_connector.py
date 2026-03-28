@@ -252,7 +252,7 @@ def write_earnings_to_graph(
                     "MERGE (e:Event {event_id: $event_id}) "
                     "SET e += $props, e:EarningsEvent "
                     "WITH e "
-                    "MERGE (a:Asset {symbol: $symbol}) "
+                    "MERGE (a:Asset {ticker: $symbol}) "
                     "MERGE (a)-[r:REPORTS]->(e) "
                     "SET r.updated_at = $ts",
                     event_id=event_id, props=props, symbol=event.symbol, ts=ts,

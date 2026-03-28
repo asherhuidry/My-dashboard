@@ -531,8 +531,8 @@ def _store_discovered_correlations(new_corrs: list[dict]) -> None:
         with driver.session() as session:
             for c in new_corrs:
                 session.run(
-                    "MERGE (a:Asset {symbol: $a}) "
-                    "MERGE (b:Asset {symbol: $b}) "
+                    "MERGE (a:Asset {ticker: $a}) "
+                    "MERGE (b:Asset {ticker: $b}) "
                     "MERGE (a)-[r:HIDDEN_CORRELATION]->(b) "
                     "SET r.similarity = $sim, r.type = $t, r.discovered_at = $ts",
                     a   = c["node_a"],
