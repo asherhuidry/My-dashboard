@@ -19,14 +19,19 @@ from skills.logger import get_logger
 
 log = get_logger(__name__)
 
-# Maps Neo4j rel types to the edge type indices used by graph_net.py
+# Maps Neo4j rel types to the edge type indices used by graph_net.py (EDGE_TYPES)
+# See ml/neural/graph_net.py for canonical definitions:
+#   0=supplies_to, 1=correlates_with, 2=impacts, 3=belongs_to,
+#   4=competes_with, 5=leads, 6=unknown
 _REL_TYPE_MAP: dict[str, int] = {
-    "CORRELATED_WITH": 1,
-    "CAUSES":          5,
-    "SENSITIVE_TO":    2,
-    "BELONGS_TO":      3,
-    "TRIGGERED_BY":    2,
-    "IMPACTS":         2,
+    "CORRELATED_WITH": 1,   # correlates_with
+    "CAUSES":          5,   # leads (Granger-causal)
+    "SENSITIVE_TO":    2,   # impacts (factor exposure)
+    "BELONGS_TO":      3,   # belongs_to
+    "TRIGGERED_BY":    5,   # leads (event → indicator, temporal)
+    "IMPACTS":         2,   # impacts
+    "GENERATES":       6,   # no direct match → unknown
+    "TRAINED_ON":      6,   # no direct match → unknown
 }
 
 
@@ -112,23 +117,27 @@ def export_graph_tensors(
     # ── Fetch edges ─────────────────────────────────────────────────────
     edge_query = """
         MATCH (a)-[r]->(b)
-        WHERE r.confidence IS NULL OR r.confidence >= $min_conf
         RETURN
             coalesce(a.ticker, a.series_id, a.name, a.event_id) AS src,
             coalesce(b.ticker, b.series_id, b.name, b.event_id) AS tgt,
-            type(r)              AS rel_type,
-            r.confidence         AS confidence,
-            r.pearson_r          AS pearson_r,
-            r.evidence_count     AS evidence_count
+            type(r)                  AS rel_type,
+            r.confidence             AS confidence,
+            r.pearson_r              AS pearson_r,
+            coalesce(r.evidence_count, 1) AS evidence_count,
+            duration.between(
+              coalesce(r.last_confirmed_at, r.first_seen_at, datetime()),
+              datetime()
+            ).days                   AS age_days
     """
     srcs: list[int] = []
     dsts: list[int] = []
     etypes: list[int] = []
     eweights: list[float] = []
     skipped = 0
+    unmapped_types: set[str] = set()
 
     with driver.session() as sess:
-        result = sess.run(edge_query, min_conf=min_confidence)
+        result = sess.run(edge_query)
         for record in result:
             src_id = record["src"]
             tgt_id = record["tgt"]
@@ -144,19 +153,34 @@ def export_graph_tensors(
             src_idx = node_to_idx[src_key]
             tgt_idx = node_to_idx[tgt_key]
             rel = record["rel_type"]
+            if rel not in _REL_TYPE_MAP:
+                unmapped_types.add(rel)
             etype = _REL_TYPE_MAP.get(rel, 6)  # 6 = unknown
 
+            # Compute effective confidence with temporal decay
             if use_confidence_weights and record["confidence"] is not None:
-                weight = float(record["confidence"])
+                from data.agents.edge_confidence import decay_confidence
+                raw_conf = float(record["confidence"])
+                age = float(record["age_days"]) if record["age_days"] is not None else 0.0
+                ev = int(record["evidence_count"])
+                weight = decay_confidence(raw_conf, age, evidence_count=ev)
             elif record["pearson_r"] is not None:
                 weight = abs(float(record["pearson_r"]))
             else:
                 weight = 0.5
 
+            # Apply min_confidence filter against effective weight
+            if min_confidence > 0 and weight < min_confidence:
+                skipped += 1
+                continue
+
             srcs.append(src_idx)
             dsts.append(tgt_idx)
             etypes.append(etype)
             eweights.append(weight)
+
+    if unmapped_types:
+        log.warning("Unmapped edge types in export: %s", unmapped_types)
 
     n_edges = len(srcs)
     log.info("Exported %d edges from Neo4j (skipped %d)", n_edges, skipped)

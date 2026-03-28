@@ -224,42 +224,89 @@ def compute_edge_changes(
 # ─────────────────────────────────────────────────────────────────────────────
 
 def query_edge_confidence_stats() -> dict[str, Any] | None:
-    """Query aggregate edge confidence and evidence stats from Neo4j.
+    """Query per-edge confidence data from Neo4j and apply temporal decay.
 
-    Returns a summary of how well-supported the graph edges are,
-    including mean confidence, evidence accumulation, and the count
-    of low-confidence edges.
+    Fetches raw confidence, age, and evidence count for every scored edge,
+    then applies ``decay_confidence()`` in Python to compute effective
+    (time-decayed) confidence.  Returns both raw and effective aggregates.
 
     Returns:
-        Dict with confidence stats, or None if unavailable.
+        Dict with raw and effective confidence stats, or None if unavailable.
     """
     try:
         from db.neo4j.client import get_driver
+        from data.agents.edge_confidence import decay_confidence, classify_staleness
+
         driver = get_driver()
         with driver.session() as sess:
             result = sess.run("""
                 MATCH ()-[r]->()
                 WHERE r.confidence IS NOT NULL
-                WITH r,
-                     duration.between(
-                       coalesce(r.last_confirmed_at, r.first_seen_at, datetime()),
-                       datetime()
-                     ).days AS age_days
                 RETURN
-                  count(r)                                          AS scored_edges,
-                  round(avg(r.confidence), 4)                       AS mean_confidence,
-                  round(min(r.confidence), 4)                       AS min_confidence,
-                  round(percentileDisc(r.confidence, 0.25), 4)      AS p25,
-                  round(percentileDisc(r.confidence, 0.50), 4)      AS median,
-                  sum(CASE WHEN r.confidence < 0.4 THEN 1 ELSE 0 END) AS low_confidence,
-                  sum(CASE WHEN r.evidence_count > 1 THEN 1 ELSE 0 END) AS reconfirmed,
-                  round(avg(coalesce(r.evidence_count, 1)), 2)      AS mean_evidence_count,
-                  sum(CASE WHEN age_days > 90 AND age_days <= 180 THEN 1 ELSE 0 END) AS stale_edges,
-                  sum(CASE WHEN age_days > 180 THEN 1 ELSE 0 END)   AS expired_edges
+                  r.confidence                     AS raw_conf,
+                  coalesce(r.evidence_count, 1)     AS ev_count,
+                  duration.between(
+                    coalesce(r.last_confirmed_at, r.first_seen_at, datetime()),
+                    datetime()
+                  ).days                            AS age_days
             """)
-            row = result.single()
-            if row and row["scored_edges"] > 0:
-                return dict(row)
+            rows = [dict(r) for r in result]
+
+        if not rows:
+            return None
+
+        # Apply decay to each edge
+        raw_scores: list[float] = []
+        effective_scores: list[float] = []
+        staleness_counts: dict[str, int] = {"fresh": 0, "aging": 0, "stale": 0, "expired": 0}
+        reconfirmed = 0
+        evidence_counts: list[int] = []
+
+        for r in rows:
+            raw = float(r["raw_conf"])
+            age = float(r["age_days"])
+            ev = int(r["ev_count"])
+
+            eff = decay_confidence(raw, age, evidence_count=ev)
+
+            raw_scores.append(raw)
+            effective_scores.append(eff)
+            evidence_counts.append(ev)
+
+            staleness = classify_staleness(age, evidence_count=ev)
+            staleness_counts[staleness] += 1
+
+            if ev > 1:
+                reconfirmed += 1
+
+        n = len(rows)
+        raw_sorted = sorted(raw_scores)
+        eff_sorted = sorted(effective_scores)
+
+        return {
+            "scored_edges":         n,
+            # Raw confidence (as stored in Neo4j)
+            "mean_confidence":      round(sum(raw_scores) / n, 4),
+            "min_confidence":       round(raw_sorted[0], 4),
+            "p25":                  round(raw_sorted[n // 4], 4),
+            "median":               round(raw_sorted[n // 2], 4),
+            # Effective confidence (after temporal decay)
+            "mean_effective":       round(sum(effective_scores) / n, 4),
+            "min_effective":        round(eff_sorted[0], 4),
+            "median_effective":     round(eff_sorted[n // 2], 4),
+            # Evidence & staleness
+            "low_confidence":       sum(1 for e in effective_scores if e < 0.4),
+            "reconfirmed":          reconfirmed,
+            "mean_evidence_count":  round(sum(evidence_counts) / n, 2),
+            "stale_edges":          staleness_counts["stale"],
+            "expired_edges":        staleness_counts["expired"],
+            "freshness": {
+                "fresh":  staleness_counts["fresh"],
+                "aging":  staleness_counts["aging"],
+                "stale":  staleness_counts["stale"],
+                "expired": staleness_counts["expired"],
+            },
+        }
     except Exception as exc:
         log.debug("Edge confidence query unavailable: %s", exc)
     return None
@@ -519,16 +566,18 @@ def rank_insights(
     if confidence_stats:
         total = confidence_stats.get("scored_edges", 0)
         low = confidence_stats.get("low_confidence", 0)
-        mean_conf = confidence_stats.get("mean_confidence", 1.0)
+        # Use effective (decayed) confidence for quality assessment
+        mean_eff = confidence_stats.get("mean_effective",
+                                        confidence_stats.get("mean_confidence", 1.0))
         reconfirmed = confidence_stats.get("reconfirmed", 0)
 
-        if total > 0 and mean_conf < 0.45:
+        if total > 0 and mean_eff < 0.45:
             insights.append({
                 "type": "weak_evidence_base",
                 "priority": 2,
-                "title": f"Graph evidence base is thin (mean confidence {mean_conf:.2f})",
+                "title": f"Graph evidence base is thin (effective confidence {mean_eff:.2f})",
                 "detail": (
-                    f"{low}/{total} edges below 0.4 confidence. "
+                    f"{low}/{total} edges below 0.4 effective confidence. "
                     f"Re-running discovery may strengthen the graph."
                 ),
                 "evidence": confidence_stats,
@@ -539,10 +588,10 @@ def rank_insights(
                 insights.append({
                     "type": "many_weak_edges",
                     "priority": 3,
-                    "title": f"{low_pct:.0%} of edges have low confidence",
+                    "title": f"{low_pct:.0%} of edges have low effective confidence",
                     "detail": (
-                        f"{low} of {total} scored edges below 0.4. "
-                        f"Mean confidence: {mean_conf:.2f}."
+                        f"{low} of {total} scored edges below 0.4 after temporal decay. "
+                        f"Mean effective confidence: {mean_eff:.2f}."
                     ),
                     "evidence": confidence_stats,
                 })

@@ -480,7 +480,8 @@ def persist_intelligence_report(report: dict[str, Any], run_id: str | None = Non
     """Persist an intelligence report to the evolution_log.
 
     Stores the full report as after_state so it can be retrieved later
-    for history, comparison, and audit purposes.
+    for history, comparison, and audit purposes.  Quick-access summary
+    fields are placed in metadata for lightweight history queries.
 
     Args:
         report: The intelligence report dict from build_intelligence_report().
@@ -492,12 +493,14 @@ def persist_intelligence_report(report: dict[str, Any], run_id: str | None = Non
     entry = EvolutionLogEntry(
         agent_id="graph_intelligence",
         action="intelligence_report",
-        after_state={
+        after_state=report,
+        metadata={
             "run_id": run_id or report.get("run_id"),
             "insight_count": len(report.get("insights", [])),
-            "reasoning": report.get("reasoning", {}),
-            "metrics": report.get("metrics", {}),
-            "confidence": report.get("confidence"),
+            "reasoning_summary": report.get("reasoning", {}).get("structural_health"),
+            "node_count": report.get("metrics", {}).get("total_nodes"),
+            "edge_count": report.get("metrics", {}).get("total_edges"),
+            "mean_effective_confidence": report.get("confidence", {}).get("mean_effective") if report.get("confidence") else None,
             "anomaly_count": len(report.get("anomalies", {}).get("anomalies", [])),
         },
     )
