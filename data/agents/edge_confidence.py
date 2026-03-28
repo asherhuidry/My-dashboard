@@ -19,6 +19,7 @@ different things:
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
 
@@ -200,3 +201,75 @@ def score_edge(props: dict[str, Any]) -> float:
         mutual_info=props.get("mutual_info"),
         strength=props.get("strength"),
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Temporal confidence decay
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Half-life in days: confidence halves every 90 days without reconfirmation.
+_HALF_LIFE_DAYS: float = 90.0
+
+# Minimum floor: even fully decayed edges retain 10% of raw confidence.
+_DECAY_FLOOR: float = 0.10
+
+
+def decay_confidence(
+    raw_confidence: float,
+    days_since_confirmed: float,
+    evidence_count: int = 1,
+    half_life: float = _HALF_LIFE_DAYS,
+) -> float:
+    """Apply temporal decay to raw confidence.
+
+    Edges that haven't been reconfirmed recently have their confidence
+    reduced via exponential decay.  Edges with higher ``evidence_count``
+    decay more slowly (each reconfirmation adds 20% to the half-life).
+
+    Args:
+        raw_confidence:       The stored confidence score [0-1].
+        days_since_confirmed: Days since ``last_confirmed_at`` (or
+                              ``first_seen_at`` if never reconfirmed).
+        evidence_count:       How many independent runs confirmed this edge.
+        half_life:            Base half-life in days (default 90).
+
+    Returns:
+        Effective confidence after decay, floored at 10% of raw.
+    """
+    if days_since_confirmed <= 0:
+        return _clamp(raw_confidence)
+
+    # More reconfirmations → slower decay (each adds 20% to half-life)
+    adjusted_hl = half_life * (1.0 + 0.20 * max(evidence_count - 1, 0))
+
+    import math
+    decay_factor = math.pow(0.5, days_since_confirmed / adjusted_hl)
+    floor = raw_confidence * _DECAY_FLOOR
+    decayed = raw_confidence * decay_factor
+
+    return _clamp(max(decayed, floor))
+
+
+def classify_staleness(
+    days_since_confirmed: float,
+    evidence_count: int = 1,
+) -> str:
+    """Classify an edge's staleness level.
+
+    Args:
+        days_since_confirmed: Days since last confirmation.
+        evidence_count:       Number of independent confirmations.
+
+    Returns:
+        One of 'fresh', 'aging', 'stale', 'expired'.
+    """
+    # Well-confirmed edges get longer freshness windows
+    freshness_bonus = min(evidence_count - 1, 5) * 7  # +7 days per extra confirmation
+
+    if days_since_confirmed <= 30 + freshness_bonus:
+        return "fresh"
+    if days_since_confirmed <= 90 + freshness_bonus:
+        return "aging"
+    if days_since_confirmed <= 180 + freshness_bonus:
+        return "stale"
+    return "expired"

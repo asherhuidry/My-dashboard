@@ -163,6 +163,25 @@ function NodeDetailPanel({ nodeName, onClose }) {
                     </span>
                   </div>
 
+                  {/* Confidence bar */}
+                  {rel.confidence != null && (
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <span className="text-[9px] text-text-muted w-5">conf</span>
+                      <div className="flex-1 h-1 bg-border/50 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all" style={{
+                          width: `${Math.round(rel.confidence * 100)}%`,
+                          background: rel.confidence >= 0.7 ? '#10b981' : rel.confidence >= 0.4 ? '#f59e0b' : '#ef4444',
+                        }} />
+                      </div>
+                      <span className="text-[9px] ticker-value" style={{
+                        color: rel.confidence >= 0.7 ? '#10b981' : rel.confidence >= 0.4 ? '#f59e0b' : '#ef4444',
+                      }}>{(rel.confidence * 100).toFixed(0)}%</span>
+                      {rel.evidence_count > 1 && (
+                        <span className="text-[8px] text-accent bg-accent/10 px-1 rounded">{rel.evidence_count}x</span>
+                      )}
+                    </div>
+                  )}
+
                   {/* Properties */}
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
                     {rel.beta != null && (
@@ -225,6 +244,81 @@ function NodeDetailPanel({ nodeName, onClose }) {
         ))}
       </div>
     </motion.div>
+  )
+}
+
+// ── Graph health + reasoning panel ──────────────────────────────
+function GraphHealthPanel({ intelligence }) {
+  const { reasoning, confidence } = intelligence ?? {}
+  if (!reasoning && !confidence) return null
+
+  const health = reasoning?.structural_health
+  const topFactor = reasoning?.most_influential_factor
+  const topExposed = reasoning?.most_exposed_asset
+
+  const gradeColor = {
+    excellent: '#10b981', good: '#3b82f6', fair: '#f59e0b', poor: '#ef4444',
+  }
+
+  return (
+    <div className="absolute top-4 right-4 glass rounded-lg px-3 py-2.5 text-xs space-y-2 w-52">
+      <div className="text-[9px] text-text-muted uppercase tracking-wider font-semibold">Graph Health</div>
+
+      {health && (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-text-secondary">Overall</span>
+            <span className="ticker-value font-semibold" style={{ color: gradeColor[health.grade] ?? '#94a3b8' }}>
+              {(health.score * 100).toFixed(0)}% {health.grade}
+            </span>
+          </div>
+          {Object.entries(health.components).map(([k, v]) => (
+            <div key={k} className="flex items-center gap-1.5">
+              <span className="text-[9px] text-text-muted w-16 truncate">{k}</span>
+              <div className="flex-1 h-1 bg-border/50 rounded-full overflow-hidden">
+                <div className="h-full bg-accent/60 rounded-full" style={{ width: `${Math.round(v * 100)}%` }} />
+              </div>
+              <span className="text-[9px] ticker-value text-text-secondary w-6 text-right">{(v * 100).toFixed(0)}%</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {confidence && (
+        <div className="pt-1 border-t border-border/50 space-y-0.5">
+          <div className="flex justify-between">
+            <span className="text-text-muted">Mean confidence</span>
+            <span className="ticker-value text-text">{(confidence.mean_confidence * 100).toFixed(0)}%</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-text-muted">Edges scored</span>
+            <span className="ticker-value text-text">{confidence.scored_edges}</span>
+          </div>
+          {confidence.reconfirmed > 0 && (
+            <div className="flex justify-between">
+              <span className="text-text-muted">Reconfirmed</span>
+              <span className="ticker-value text-accent">{confidence.reconfirmed}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {topFactor && (
+        <div className="pt-1 border-t border-border/50">
+          <div className="text-[9px] text-text-muted">Top factor</div>
+          <div className="text-[10px] text-text font-medium">{topFactor.factor_id}</div>
+          <div className="text-[9px] text-text-muted">{topFactor.asset_count} assets, {topFactor.class_count} classes</div>
+        </div>
+      )}
+
+      {topExposed && (
+        <div className="pt-1 border-t border-border/50">
+          <div className="text-[9px] text-text-muted">Most exposed</div>
+          <div className="text-[10px] text-text font-medium">{topExposed.asset}</div>
+          <div className="text-[9px] text-text-muted">divergence {topExposed.total_divergence.toFixed(3)}</div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -356,6 +450,9 @@ export default function Network() {
                 onNodeClick={handleNodeClick}
               />
             ) : null}
+
+            {/* Graph health panel (top-right) */}
+            {tab === 'graph' && intelligence && <GraphHealthPanel intelligence={intelligence} />}
 
             {/* Stats overlay */}
             {data && !loading && !isEmpty && (

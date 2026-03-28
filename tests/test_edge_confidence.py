@@ -1,7 +1,7 @@
 """Tests for the edge confidence scoring engine.
 
 Covers: per-edge-type scorers, auto-detect dispatch, boundary
-conditions, and score monotonicity (stronger evidence → higher score).
+conditions, score monotonicity, temporal decay, and staleness.
 """
 from __future__ import annotations
 
@@ -12,6 +12,8 @@ from data.agents.edge_confidence import (
     score_sensitivity_edge,
     score_causal_edge,
     score_edge,
+    decay_confidence,
+    classify_staleness,
 )
 
 
@@ -371,3 +373,121 @@ class TestConfidenceInsights:
         insights = rank_insights(analysis, {}, confidence_stats=conf_stats)
         types = [i["type"] for i in insights]
         assert "weak_evidence_base" not in types
+
+    def test_expired_edges_insight(self) -> None:
+        from data.agents.graph_intelligence import rank_insights
+        analysis = {"regime_divergence": {}, "bridge_factors": {}, "exposure_profiles": {}}
+        conf_stats = {
+            "scored_edges": 100,
+            "mean_confidence": 0.55,
+            "low_confidence": 10,
+            "reconfirmed": 5,
+            "mean_evidence_count": 1.1,
+            "stale_edges": 5,
+            "expired_edges": 15,
+        }
+        insights = rank_insights(analysis, {}, confidence_stats=conf_stats)
+        types = [i["type"] for i in insights]
+        assert "expired_edges" in types
+
+    def test_stale_edges_insight(self) -> None:
+        from data.agents.graph_intelligence import rank_insights
+        analysis = {"regime_divergence": {}, "bridge_factors": {}, "exposure_profiles": {}}
+        conf_stats = {
+            "scored_edges": 100,
+            "mean_confidence": 0.55,
+            "low_confidence": 10,
+            "reconfirmed": 5,
+            "mean_evidence_count": 1.1,
+            "stale_edges": 30,
+            "expired_edges": 3,
+        }
+        insights = rank_insights(analysis, {}, confidence_stats=conf_stats)
+        types = [i["type"] for i in insights]
+        assert "stale_edges" in types
+
+
+# ── Temporal decay ──────────────────────────────────────────────────────────
+
+class TestDecayConfidence:
+    """Tests for temporal confidence decay."""
+
+    def test_zero_days_returns_raw(self) -> None:
+        assert decay_confidence(0.8, 0) == 0.8
+
+    def test_negative_days_returns_raw(self) -> None:
+        assert decay_confidence(0.7, -5) == 0.7
+
+    def test_decays_over_time(self) -> None:
+        raw = 0.8
+        d30 = decay_confidence(raw, 30)
+        d90 = decay_confidence(raw, 90)
+        d180 = decay_confidence(raw, 180)
+        assert raw > d30 > d90 > d180
+
+    def test_half_life_at_90_days(self) -> None:
+        """At exactly one half-life, confidence should be ~50% of raw."""
+        raw = 1.0
+        decayed = decay_confidence(raw, 90)
+        assert abs(decayed - 0.5) < 0.01
+
+    def test_floor_prevents_zero(self) -> None:
+        """Even after 1000 days, confidence stays above floor (10% of raw)."""
+        raw = 0.8
+        decayed = decay_confidence(raw, 1000)
+        assert decayed >= 0.08  # 10% of 0.8
+        assert decayed > 0
+
+    def test_evidence_count_slows_decay(self) -> None:
+        """More evidence → slower decay → higher confidence at same age."""
+        raw = 0.8
+        single = decay_confidence(raw, 90, evidence_count=1)
+        multi = decay_confidence(raw, 90, evidence_count=5)
+        assert multi > single
+
+    def test_always_in_unit_range(self) -> None:
+        assert 0.0 <= decay_confidence(1.0, 0) <= 1.0
+        assert 0.0 <= decay_confidence(1.0, 500) <= 1.0
+        assert 0.0 <= decay_confidence(0.0, 90) <= 1.0
+
+    def test_custom_half_life(self) -> None:
+        fast = decay_confidence(0.8, 45, half_life=45)
+        slow = decay_confidence(0.8, 45, half_life=180)
+        assert slow > fast
+
+
+# ── Staleness classification ────────────────────────────────────────────────
+
+class TestClassifyStaleness:
+    """Tests for edge staleness classification."""
+
+    def test_fresh(self) -> None:
+        assert classify_staleness(0) == "fresh"
+        assert classify_staleness(15) == "fresh"
+        assert classify_staleness(30) == "fresh"
+
+    def test_aging(self) -> None:
+        assert classify_staleness(45) == "aging"
+        assert classify_staleness(90) == "aging"
+
+    def test_stale(self) -> None:
+        assert classify_staleness(120) == "stale"
+        assert classify_staleness(180) == "stale"
+
+    def test_expired(self) -> None:
+        assert classify_staleness(200) == "expired"
+        assert classify_staleness(365) == "expired"
+
+    def test_evidence_extends_freshness(self) -> None:
+        """Extra evidence gives bonus days to each tier."""
+        # 5 extra confirmations → +28 days bonus (4 * 7)
+        assert classify_staleness(50, evidence_count=5) == "fresh"
+        # Without evidence, 50 days would be "aging"
+        assert classify_staleness(50, evidence_count=1) == "aging"
+
+    def test_evidence_bonus_capped(self) -> None:
+        """Bonus caps at 5 extra confirmations (35 days max)."""
+        assert classify_staleness(65, evidence_count=10) == "fresh"
+        assert classify_staleness(65, evidence_count=100) == "fresh"
+        # 65 with max bonus 35 → threshold 65, so should be "fresh"
+        assert classify_staleness(66, evidence_count=100) == "aging"

@@ -56,3 +56,20 @@ def graph_intelligence(
     """
     from data.agents.graph_intelligence import build_intelligence_report
     return build_intelligence_report(run_id=run_id)
+
+
+@router.get("/graph/intelligence/history")
+def intelligence_history(
+    limit: int = Query(10, ge=1, le=50, description="Max reports to return"),
+) -> dict:
+    """Return recent intelligence report history from the evolution trail.
+
+    Each entry includes key metrics, reasoning summaries, and insight counts
+    so the UI can show trends over time.
+    """
+    from db.supabase.client import get_intelligence_reports
+    reports = get_intelligence_reports(limit=limit)
+    return {
+        "reports": reports,
+        "count": len(reports),
+    }

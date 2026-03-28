@@ -474,3 +474,53 @@ def get_discoveries(
         rows = [r for r in rows if abs(r.get("pearson_r", 0)) >= min_abs_r]
 
     return rows
+
+
+def persist_intelligence_report(report: dict[str, Any], run_id: str | None = None) -> dict[str, Any]:
+    """Persist an intelligence report to the evolution_log.
+
+    Stores the full report as after_state so it can be retrieved later
+    for history, comparison, and audit purposes.
+
+    Args:
+        report: The intelligence report dict from build_intelligence_report().
+        run_id: Optional discovery run_id to link this report to.
+
+    Returns:
+        The created evolution_log row.
+    """
+    entry = EvolutionLogEntry(
+        agent_id="graph_intelligence",
+        action="intelligence_report",
+        after_state={
+            "run_id": run_id or report.get("run_id"),
+            "insight_count": len(report.get("insights", [])),
+            "reasoning": report.get("reasoning", {}),
+            "metrics": report.get("metrics", {}),
+            "confidence": report.get("confidence"),
+            "anomaly_count": len(report.get("anomalies", {}).get("anomalies", [])),
+        },
+    )
+    return log_evolution(entry)
+
+
+def get_intelligence_reports(limit: int = 10) -> list[dict[str, Any]]:
+    """Fetch recent intelligence reports from evolution_log.
+
+    Args:
+        limit: Maximum number of reports to return.
+
+    Returns:
+        List of evolution_log row dicts, newest first.
+    """
+    client = get_client()
+    result = (
+        client.table("evolution_log")
+        .select("*")
+        .eq("agent_id", "graph_intelligence")
+        .eq("action", "intelligence_report")
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return result.data

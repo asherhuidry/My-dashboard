@@ -477,6 +477,61 @@ def batch_merge_macro_indicators(nodes: list[dict[str, Any]]) -> int:
     return len(nodes)
 
 
+def batch_merge_events(events: list[dict[str, Any]]) -> int:
+    """Batch-merge Event nodes using UNWIND.
+
+    Each dict must have keys: event_id, event_type, label, event_date,
+    impact, description.
+
+    Args:
+        events: List of event property dicts.
+
+    Returns:
+        Number of event nodes merged.
+    """
+    if not events:
+        return 0
+    cypher = """
+        UNWIND $events AS e
+        MERGE (ev:Event {event_id: e.event_id})
+        SET ev.event_type  = e.event_type,
+            ev.label       = e.label,
+            ev.event_date  = date(e.event_date),
+            ev.impact      = e.impact,
+            ev.description = e.description
+    """
+    with session() as s:
+        s.run(cypher, events=events)
+    logger.info("neo4j_batch_events_merged", count=len(events))
+    return len(events)
+
+
+def batch_merge_event_edges(edges: list[dict[str, Any]]) -> int:
+    """Batch-merge TRIGGERED_BY edges from Event to MacroIndicator.
+
+    Each dict must have keys: event_id, series_id.
+
+    Args:
+        edges: List of edge dicts.
+
+    Returns:
+        Number of edges merged.
+    """
+    if not edges:
+        return 0
+    cypher = """
+        UNWIND $edges AS e
+        MATCH (ev:Event {event_id: e.event_id})
+        MATCH (m:MacroIndicator {series_id: e.series_id})
+        MERGE (ev)-[r:TRIGGERED_BY]->(m)
+        SET r.updated_at = datetime()
+    """
+    with session() as s:
+        s.run(cypher, edges=edges)
+    logger.info("neo4j_batch_event_edges_merged", count=len(edges))
+    return len(edges)
+
+
 def batch_merge_edges(edges: list[dict[str, Any]]) -> int:
     """Batch-merge relationship edges using UNWIND.
 

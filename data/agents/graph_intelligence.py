@@ -240,6 +240,11 @@ def query_edge_confidence_stats() -> dict[str, Any] | None:
             result = sess.run("""
                 MATCH ()-[r]->()
                 WHERE r.confidence IS NOT NULL
+                WITH r,
+                     duration.between(
+                       coalesce(r.last_confirmed_at, r.first_seen_at, datetime()),
+                       datetime()
+                     ).days AS age_days
                 RETURN
                   count(r)                                          AS scored_edges,
                   round(avg(r.confidence), 4)                       AS mean_confidence,
@@ -248,7 +253,9 @@ def query_edge_confidence_stats() -> dict[str, Any] | None:
                   round(percentileDisc(r.confidence, 0.50), 4)      AS median,
                   sum(CASE WHEN r.confidence < 0.4 THEN 1 ELSE 0 END) AS low_confidence,
                   sum(CASE WHEN r.evidence_count > 1 THEN 1 ELSE 0 END) AS reconfirmed,
-                  round(avg(coalesce(r.evidence_count, 1)), 2)      AS mean_evidence_count
+                  round(avg(coalesce(r.evidence_count, 1)), 2)      AS mean_evidence_count,
+                  sum(CASE WHEN age_days > 90 AND age_days <= 180 THEN 1 ELSE 0 END) AS stale_edges,
+                  sum(CASE WHEN age_days > 180 THEN 1 ELSE 0 END)   AS expired_edges
             """)
             row = result.single()
             if row and row["scored_edges"] > 0:
@@ -554,12 +561,192 @@ def rank_insights(
                     "evidence": confidence_stats,
                 })
 
+        # Staleness insights
+        stale = confidence_stats.get("stale_edges", 0)
+        expired = confidence_stats.get("expired_edges", 0)
+        if total > 0 and expired > 0:
+            expired_pct = expired / total
+            if expired_pct > 0.10:
+                insights.append({
+                    "type": "expired_edges",
+                    "priority": 2,
+                    "title": f"{expired_pct:.0%} of edges have expired (no reconfirmation in 180+ days)",
+                    "detail": (
+                        f"{expired} of {total} edges are expired. "
+                        f"Consider pruning or re-running discovery on affected pairs."
+                    ),
+                    "evidence": confidence_stats,
+                })
+        if total > 0 and stale > 0:
+            stale_pct = stale / total
+            if stale_pct > 0.25:
+                insights.append({
+                    "type": "stale_edges",
+                    "priority": 3,
+                    "title": f"{stale_pct:.0%} of edges are stale (90-180 days without reconfirmation)",
+                    "detail": (
+                        f"{stale} of {total} edges haven't been reconfirmed recently. "
+                        f"Their effective confidence is decaying."
+                    ),
+                    "evidence": confidence_stats,
+                })
+
     insights.sort(key=lambda i: i["priority"])
     return insights
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 6. Combined intelligence report
+# 6. Graph-state reasoning summaries
+# ─────────────────────────────────────────────────────────────────────────────
+
+def compute_graph_reasoning_summary(
+    analysis: dict[str, Any],
+    metrics: dict[str, Any],
+    confidence_stats: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Distil structural analysis into high-level reasoning conclusions.
+
+    Answers the questions:
+    - What is the single most influential macro factor?
+    - Which asset class has the highest aggregate exposure?
+    - How healthy / trustworthy is the graph overall?
+    - What is the dominant structural pattern right now?
+
+    These summaries power the intelligence narrative and can feed
+    into LLM-generated briefings.
+
+    Args:
+        analysis:         Output of analyze_graph_structure().
+        metrics:          Summary metrics from compute_summary_metrics().
+        confidence_stats: Optional edge confidence summary.
+
+    Returns:
+        Dict with reasoning conclusions.
+    """
+    reasoning: dict[str, Any] = {}
+
+    # ── Most influential factor ────────────────────────────────────────
+    bridges = analysis.get("bridge_factors", {}).get("bridges", [])
+    if bridges:
+        top_bridge = max(
+            [b for b in bridges if b.get("is_bridge")],
+            key=lambda b: (b.get("class_count", 0), b.get("asset_count", 0)),
+            default=None,
+        )
+        if top_bridge:
+            reasoning["most_influential_factor"] = {
+                "factor_id": top_bridge["factor_id"],
+                "class_count": top_bridge["class_count"],
+                "asset_count": top_bridge["asset_count"],
+                "asset_classes": top_bridge.get("asset_classes", []),
+                "narrative": (
+                    f"{top_bridge['factor_id']} is the most influential factor, "
+                    f"connecting {top_bridge['asset_count']} assets across "
+                    f"{top_bridge['class_count']} asset classes."
+                ),
+            }
+
+    # ── Most exposed asset class ───────────────────────────────────────
+    divs = analysis.get("regime_divergence", {}).get("divergences", [])
+    if divs:
+        # Count divergences per asset and find the most exposed
+        asset_div_counts: dict[str, float] = {}
+        for d in divs:
+            asset = d.get("asset", "")
+            asset_div_counts[asset] = asset_div_counts.get(asset, 0) + d.get("abs_change", 0)
+        if asset_div_counts:
+            most_exposed = max(asset_div_counts.items(), key=lambda x: x[1])
+            reasoning["most_exposed_asset"] = {
+                "asset": most_exposed[0],
+                "total_divergence": round(most_exposed[1], 4),
+                "divergence_count": sum(1 for d in divs if d["asset"] == most_exposed[0]),
+                "narrative": (
+                    f"{most_exposed[0]} shows the highest regime sensitivity "
+                    f"with total divergence of {most_exposed[1]:.3f} across "
+                    f"{sum(1 for d in divs if d['asset'] == most_exposed[0])} factor exposures."
+                ),
+            }
+
+    # ── Structural health score ────────────────────────────────────────
+    health_components: dict[str, float] = {}
+
+    # Confidence quality (0-1)
+    if confidence_stats and confidence_stats.get("scored_edges", 0) > 0:
+        health_components["confidence"] = min(
+            confidence_stats.get("mean_confidence", 0.5) / 0.7, 1.0
+        )
+        # Reconfirmation ratio
+        reconf = confidence_stats.get("reconfirmed", 0) / confidence_stats["scored_edges"]
+        health_components["reconfirmation"] = min(reconf / 0.5, 1.0)
+        # Freshness (inverse of staleness)
+        stale = confidence_stats.get("stale_edges", 0) + confidence_stats.get("expired_edges", 0)
+        health_components["freshness"] = max(
+            1.0 - stale / confidence_stats["scored_edges"], 0.0
+        )
+
+    # Coverage
+    centrality = analysis.get("centrality", {}).get("ranking", [])
+    if centrality:
+        health_components["coverage"] = min(len(centrality) / 50, 1.0)
+
+    # Bridge diversity
+    active_bridges = [b for b in bridges if b.get("is_bridge")]
+    if active_bridges:
+        health_components["bridge_diversity"] = min(len(active_bridges) / 5, 1.0)
+
+    if health_components:
+        overall = round(sum(health_components.values()) / len(health_components), 3)
+        reasoning["structural_health"] = {
+            "score": overall,
+            "components": {k: round(v, 3) for k, v in health_components.items()},
+            "grade": (
+                "excellent" if overall >= 0.8
+                else "good" if overall >= 0.6
+                else "fair" if overall >= 0.4
+                else "poor"
+            ),
+            "narrative": (
+                f"Graph structural health is {overall:.0%} "
+                f"({'excellent' if overall >= 0.8 else 'good' if overall >= 0.6 else 'fair' if overall >= 0.4 else 'poor'}). "
+                f"Components: {', '.join(f'{k}={v:.0%}' for k, v in health_components.items())}."
+            ),
+        }
+
+    # ── Dominant structural pattern ────────────────────────────────────
+    pairs = analysis.get("exposure_profiles", {}).get("similar_pairs", [])
+    high_sim = [p for p in pairs if p.get("cosine_similarity", 0) >= 0.85]
+    if high_sim:
+        reasoning["dominant_pattern"] = {
+            "type": "convergence",
+            "pair_count": len(high_sim),
+            "top_pair": {
+                "assets": [high_sim[0]["asset_a"], high_sim[0]["asset_b"]],
+                "similarity": high_sim[0]["cosine_similarity"],
+            },
+            "narrative": (
+                f"{len(high_sim)} asset pairs show convergent exposure profiles "
+                f"(cosine ≥ 0.85). Top pair: {high_sim[0]['asset_a']} & "
+                f"{high_sim[0]['asset_b']} at {high_sim[0]['cosine_similarity']:.2f}."
+            ),
+        }
+    elif divs:
+        amplified = [d for d in divs if d.get("direction") == "amplifies"]
+        if len(amplified) > len(divs) * 0.5:
+            reasoning["dominant_pattern"] = {
+                "type": "regime_amplification",
+                "amplified_count": len(amplified),
+                "total_divergences": len(divs),
+                "narrative": (
+                    f"Dominant pattern is regime amplification: "
+                    f"{len(amplified)}/{len(divs)} divergences are amplifying."
+                ),
+            }
+
+    return reasoning
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 7. Combined intelligence report
 # ─────────────────────────────────────────────────────────────────────────────
 
 def build_intelligence_report(run_id: str | None = None) -> dict[str, Any]:
@@ -646,10 +833,14 @@ def build_intelligence_report(run_id: str | None = None) -> dict[str, Any]:
         analysis, metrics, edge_changes, anomaly_result, confidence_stats,
     )
 
+    # 6. Graph-state reasoning summary
+    reasoning = compute_graph_reasoning_summary(analysis, metrics, confidence_stats)
+
     report: dict[str, Any] = {
         "run_id": run_id,
         "previous_timestamp": previous_timestamp,
         "insights": insights,
+        "reasoning": reasoning,
         "metrics": metrics,
         "provenance": provenance,
         "analysis": analysis,
@@ -669,4 +860,12 @@ def build_intelligence_report(run_id: str | None = None) -> dict[str, Any]:
         len(insights), anomaly_count, len(provenance),
         "yes" if diff else "first run",
     )
+
+    # Persist report to evolution trail for history
+    try:
+        from db.supabase.client import persist_intelligence_report
+        persist_intelligence_report(report, run_id=run_id)
+    except Exception as exc:
+        log.warning("Could not persist intelligence report: %s", exc)
+
     return report
