@@ -82,7 +82,7 @@ COMMODITIES: list[str] = [
     "LBS=F", "PL=F",  "PA=F",  "ALI=F",
 ]
 
-# ── FRED macro series (65 series) — (series_id, label, frequency) ─────────────
+# ── FRED macro series (67 series) — (series_id, label, frequency) ─────────────
 MACRO_SERIES: list[tuple[str, str, str]] = [
     # Interest rates & yield curve
     ("FEDFUNDS",     "Fed Funds Rate",                   "monthly"),
@@ -156,6 +156,18 @@ MACRO_SERIES: list[tuple[str, str, str]] = [
     # Global
     ("GEPUCURRENT",  "Global Economic Policy Uncertainty","monthly"),
     ("USEPUINDXD",   "US Economic Policy Uncertainty",  "daily"),
+    # Recession & Business Cycle
+    ("USREC",        "NBER Recession Indicator",         "monthly"),
+    ("USRECM",       "NBER Recession Prob (smoothed)",   "monthly"),
+    ("SAHM",         "Sahm Rule Recession Indicator",    "monthly"),
+    # EIA Energy (via FRED)
+    ("WCOILWTICO",   "WTI Crude Weekly Ending Stocks",   "weekly"),
+    ("WTISPLC",      "WTI Spot Price (Cushing)",         "daily"),
+    ("GASREGW",      "US Regular Gasoline Price",        "weekly"),
+    ("RBRTE",        "Brent Crude Europe Spot (EIA)",    "daily"),
+    ("MCOILWTICO",   "WTI Crude Monthly Avg",            "monthly"),
+    # Yield & Term Premium
+    ("THREEFYTP10",  "10Y Term Premium (ACM)",           "monthly"),
 ]
 
 # ── Sector mapping ────────────────────────────────────────────────────────────
@@ -222,6 +234,8 @@ KNOWN_RELATIONSHIPS: list[tuple[str, str, int, str]] = [
     ("STLFSI4",      "HYG",         7, "fin_stress_credit"),
     ("NFCI",         "QQQ",        10, "fin_conditions_growth"),
     ("GEPUCURRENT",  "EEM",        21, "policy_uncertainty_em"),
+    ("SAHM",         "SPY",         5, "sahm_rule_equity"),
+    ("USREC",        "TLT",         1, "recession_bonds"),
 ]
 
 def get_yfinance_universe(extended: bool = True) -> dict[str, str]:

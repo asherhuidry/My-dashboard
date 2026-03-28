@@ -79,3 +79,8 @@ def get_alpha_vantage_key() -> str:
 def get_fred_api_key() -> str:
     """Return the FRED API key."""
     return _require("FRED_API_KEY")
+
+
+def get_finnhub_api_key() -> str:
+    """Return the Finnhub API key."""
+    return _require("FINNHUB_API_KEY")

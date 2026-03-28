@@ -61,6 +61,120 @@ SIC_TO_SECTOR: dict[str, str] = {
     "6512": "Real Estate",      # Operators of apartment buildings
 }
 
+# ── GICS sector classification for all equities ──────────────────────────────
+# Deterministic mapping: ticker → (GICS sector, GICS industry group)
+# Enables BELONGS_TO edges from Asset nodes to Sector and Industry nodes.
+TICKER_SECTOR_MAP: dict[str, tuple[str, str]] = {
+    # ── Information Technology ──
+    "AAPL": ("Information Technology", "Technology Hardware"),
+    "MSFT": ("Information Technology", "Software"),
+    "NVDA": ("Information Technology", "Semiconductors"),
+    "ADBE": ("Information Technology", "Software"),
+    "CRM":  ("Information Technology", "Software"),
+    "ORCL": ("Information Technology", "Software"),
+    "AMD":  ("Information Technology", "Semiconductors"),
+    "INTC": ("Information Technology", "Semiconductors"),
+    "QCOM": ("Information Technology", "Semiconductors"),
+    "AVGO": ("Information Technology", "Semiconductors"),
+    "TXN":  ("Information Technology", "Semiconductors"),
+    "MU":   ("Information Technology", "Semiconductors"),
+    "AMAT": ("Information Technology", "Semiconductors"),
+    "LRCX": ("Information Technology", "Semiconductors"),
+    "KLAC": ("Information Technology", "Semiconductors"),
+    "INTU": ("Information Technology", "Software"),
+    # ── Communication Services ──
+    "GOOGL": ("Communication Services", "Interactive Media"),
+    "GOOG":  ("Communication Services", "Interactive Media"),
+    "META":  ("Communication Services", "Interactive Media"),
+    # ── Consumer Discretionary ──
+    "AMZN": ("Consumer Discretionary", "Broadline Retail"),
+    "TSLA": ("Consumer Discretionary", "Automobiles"),
+    "HD":   ("Consumer Discretionary", "Home Improvement Retail"),
+    "LOW":  ("Consumer Discretionary", "Home Improvement Retail"),
+    "NKE":  ("Consumer Discretionary", "Apparel"),
+    "MCD":  ("Consumer Discretionary", "Restaurants"),
+    "SBUX": ("Consumer Discretionary", "Restaurants"),
+    "TGT":  ("Consumer Discretionary", "General Merchandise"),
+    # ── Consumer Staples ──
+    "WMT":  ("Consumer Staples", "Consumer Staples Distribution"),
+    "COST": ("Consumer Staples", "Consumer Staples Distribution"),
+    "PG":   ("Consumer Staples", "Household Products"),
+    "KO":   ("Consumer Staples", "Beverages"),
+    "PEP":  ("Consumer Staples", "Beverages"),
+    "PM":   ("Consumer Staples", "Tobacco"),
+    "MO":   ("Consumer Staples", "Tobacco"),
+    "CL":   ("Consumer Staples", "Household Products"),
+    # ── Financials ──
+    "JPM":  ("Financials", "Diversified Banks"),
+    "BAC":  ("Financials", "Diversified Banks"),
+    "WFC":  ("Financials", "Diversified Banks"),
+    "GS":   ("Financials", "Capital Markets"),
+    "MS":   ("Financials", "Capital Markets"),
+    "BLK":  ("Financials", "Asset Management"),
+    "C":    ("Financials", "Diversified Banks"),
+    "AXP":  ("Financials", "Consumer Finance"),
+    "V":    ("Financials", "Transaction Processing"),
+    "MA":   ("Financials", "Transaction Processing"),
+    "COF":  ("Financials", "Consumer Finance"),
+    "SCHW": ("Financials", "Capital Markets"),
+    "USB":  ("Financials", "Regional Banks"),
+    "BX":   ("Financials", "Asset Management"),
+    "KKR":  ("Financials", "Asset Management"),
+    # ── Healthcare ──
+    "JNJ":  ("Healthcare", "Pharmaceuticals"),
+    "UNH":  ("Healthcare", "Managed Healthcare"),
+    "LLY":  ("Healthcare", "Pharmaceuticals"),
+    "ABT":  ("Healthcare", "Healthcare Equipment"),
+    "TMO":  ("Healthcare", "Life Sciences Tools"),
+    "MRK":  ("Healthcare", "Pharmaceuticals"),
+    "ABBV": ("Healthcare", "Pharmaceuticals"),
+    "BMY":  ("Healthcare", "Pharmaceuticals"),
+    "AMGN": ("Healthcare", "Biotechnology"),
+    "GILD": ("Healthcare", "Biotechnology"),
+    "REGN": ("Healthcare", "Biotechnology"),
+    "VRTX": ("Healthcare", "Biotechnology"),
+    "BIIB": ("Healthcare", "Biotechnology"),
+    "MRNA": ("Healthcare", "Biotechnology"),
+    "PFE":  ("Healthcare", "Pharmaceuticals"),
+    "DHR":  ("Healthcare", "Life Sciences Tools"),
+    # ── Industrials ──
+    "LMT":  ("Industrials", "Aerospace & Defense"),
+    "RTX":  ("Industrials", "Aerospace & Defense"),
+    "NOC":  ("Industrials", "Aerospace & Defense"),
+    "GD":   ("Industrials", "Aerospace & Defense"),
+    "BA":   ("Industrials", "Aerospace & Defense"),
+    "CAT":  ("Industrials", "Construction Machinery"),
+    "DE":   ("Industrials", "Agricultural Machinery"),
+    "HON":  ("Industrials", "Industrial Conglomerates"),
+    "UPS":  ("Industrials", "Air Freight & Logistics"),
+    "FDX":  ("Industrials", "Air Freight & Logistics"),
+    "GE":   ("Industrials", "Industrial Conglomerates"),
+    "MMM":  ("Industrials", "Industrial Conglomerates"),
+    # ── Energy ──
+    "XOM":  ("Energy", "Integrated Oil & Gas"),
+    "CVX":  ("Energy", "Integrated Oil & Gas"),
+    "COP":  ("Energy", "Exploration & Production"),
+    "SLB":  ("Energy", "Oil & Gas Equipment"),
+    "EOG":  ("Energy", "Exploration & Production"),
+    "MPC":  ("Energy", "Oil & Gas Refining"),
+    "VLO":  ("Energy", "Oil & Gas Refining"),
+    "PSX":  ("Energy", "Oil & Gas Refining"),
+    # ── Real Estate ──
+    "AMT":  ("Real Estate", "Telecom Tower REITs"),
+    "PLD":  ("Real Estate", "Industrial REITs"),
+    "EQIX": ("Real Estate", "Data Center REITs"),
+    "CCI":  ("Real Estate", "Telecom Tower REITs"),
+    "SPG":  ("Real Estate", "Retail REITs"),
+    # ── Utilities ──
+    "NEE":  ("Utilities", "Electric Utilities"),
+    # ── Materials ──
+    "LIN":  ("Materials", "Industrial Gases"),
+    "APD":  ("Materials", "Industrial Gases"),
+    "ECL":  ("Materials", "Specialty Chemicals"),
+    # ── Diversified / Conglomerates ──
+    "BRK-B": ("Financials", "Multi-Sector Holdings"),
+}
+
 # ── Known supply chain relationships ─────────────────────────────────────────
 # Format: (supplier_symbol, customer_symbol, product_category, revenue_pct_est)
 SUPPLY_CHAIN_MAP: list[tuple[str, str, str, float | None]] = [
@@ -285,6 +399,111 @@ def build_supply_chain_graph() -> dict[str, Any]:
     return result
 
 
+def materialize_sector_classification() -> dict[str, Any]:
+    """Create Sector/Industry nodes and BELONGS_TO edges from TICKER_SECTOR_MAP.
+
+    Graph structure created:
+      (Asset)-[:BELONGS_TO]->(Industry)-[:PART_OF]->(Sector)
+      (Asset)-[:BELONGS_TO]->(Sector)
+
+    Returns:
+        Summary dict with counts of nodes and edges created.
+    """
+    try:
+        from db.neo4j.client import get_driver
+        driver = get_driver()
+    except Exception as exc:
+        log.warning("Neo4j unavailable, skipping sector classification: %s", exc)
+        return {"error": str(exc)}
+
+    sectors_created = 0
+    industries_created = 0
+    edges_created = 0
+    ts = datetime.now(tz=timezone.utc).isoformat()
+
+    # Collect unique sectors and industries
+    sector_industries: dict[str, set[str]] = {}
+    for _ticker, (sector, industry) in TICKER_SECTOR_MAP.items():
+        sector_industries.setdefault(sector, set()).add(industry)
+
+    with driver.session() as session:
+        # 1. Create Sector nodes
+        for sector in sector_industries:
+            try:
+                result = session.run(
+                    "MERGE (s:Sector {name: $name}) "
+                    "ON CREATE SET s.created_at = $ts, s.classification = 'GICS' "
+                    "RETURN s.created_at = $ts AS is_new",
+                    name=sector, ts=ts,
+                )
+                record = result.single()
+                if record and record["is_new"]:
+                    sectors_created += 1
+            except Exception as exc:
+                log.debug("Sector node create failed for %s: %s", sector, exc)
+
+        # 2. Create Industry nodes + PART_OF edges to Sector
+        for sector, industries in sector_industries.items():
+            for industry in industries:
+                try:
+                    result = session.run(
+                        "MERGE (i:Industry {name: $industry}) "
+                        "ON CREATE SET i.created_at = $ts, i.classification = 'GICS' "
+                        "WITH i "
+                        "MATCH (s:Sector {name: $sector}) "
+                        "MERGE (i)-[r:PART_OF]->(s) "
+                        "SET r.updated_at = $ts "
+                        "RETURN i.created_at = $ts AS is_new",
+                        industry=industry, sector=sector, ts=ts,
+                    )
+                    record = result.single()
+                    if record and record["is_new"]:
+                        industries_created += 1
+                    edges_created += 1
+                except Exception as exc:
+                    log.debug("Industry node create failed for %s: %s", industry, exc)
+
+        # 3. Create Asset→Industry and Asset→Sector BELONGS_TO edges
+        for ticker, (sector, industry) in TICKER_SECTOR_MAP.items():
+            try:
+                session.run(
+                    "MERGE (a:Asset {symbol: $ticker}) "
+                    "ON CREATE SET a.created_at = $ts "
+                    "WITH a "
+                    "MATCH (i:Industry {name: $industry}) "
+                    "MATCH (s:Sector {name: $sector}) "
+                    "MERGE (a)-[ri:BELONGS_TO]->(i) "
+                    "SET ri.updated_at = $ts "
+                    "MERGE (a)-[rs:BELONGS_TO]->(s) "
+                    "SET rs.updated_at = $ts",
+                    ticker=ticker, industry=industry, sector=sector, ts=ts,
+                )
+                edges_created += 2
+            except Exception as exc:
+                log.debug("BELONGS_TO edge failed for %s: %s", ticker, exc)
+
+    result_summary = {
+        "sectors_created": sectors_created,
+        "industries_created": industries_created,
+        "edges_created": edges_created,
+        "tickers_classified": len(TICKER_SECTOR_MAP),
+        "timestamp": ts,
+    }
+    log.info("Sector classification materialized: %s", result_summary)
+
+    try:
+        from db.supabase.client import log_evolution, EvolutionLogEntry
+        log_evolution(EvolutionLogEntry(
+            agent_id=AGENT_ID,
+            action="materialize_sector_classification",
+            after_state=result_summary,
+        ))
+    except Exception:
+        pass
+
+    return result_summary
+
+
 def build_correlation_edges(findings: list) -> dict[str, Any]:
     """Write correlation hunter findings to Neo4j as CORRELATES_WITH edges.
 
@@ -329,12 +548,13 @@ def build_correlation_edges(findings: list) -> dict[str, Any]:
 # ── Run ────────────────────────────────────────────────────────────────────────
 
 def run() -> dict[str, Any]:
-    """Run full knowledge graph build: supply chain + macro relationships.
+    """Run full knowledge graph build: supply chain + macro + sector classification.
 
     Returns:
         Summary of everything written.
     """
     supply_result = build_supply_chain_graph()
+    sector_result = materialize_sector_classification()
 
     # Also build from correlation hunter findings
     try:
@@ -347,7 +567,8 @@ def run() -> dict[str, Any]:
         corr_result = {"error": str(exc)}
 
     return {
-        "supply_chain": supply_result,
-        "correlations": corr_result,
-        "timestamp":    datetime.now(tz=timezone.utc).isoformat(),
+        "supply_chain":          supply_result,
+        "sector_classification": sector_result,
+        "correlations":          corr_result,
+        "timestamp":             datetime.now(tz=timezone.utc).isoformat(),
     }

@@ -17,6 +17,7 @@ class NodeLabel:
     """All node label constants used in the FinBrain graph."""
     ASSET = "Asset"
     SECTOR = "Sector"
+    INDUSTRY = "Industry"
     MACRO_INDICATOR = "MacroIndicator"
     EVENT = "Event"
     SIGNAL = "Signal"
@@ -37,6 +38,9 @@ class RelType:
     TRAINED_ON = "TRAINED_ON"             # Model → Asset
     TRIGGERED_BY = "TRIGGERED_BY"         # Signal → Event
     IMPACTS = "IMPACTS"                   # Event → Asset
+    PART_OF = "PART_OF"                   # Industry → Sector
+    REPORTS = "REPORTS"                   # Asset → Event (earnings)
+    SUPPLIES_TO = "SUPPLIES_TO"           # Company → Company (supply chain)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -74,6 +78,11 @@ CONSTRAINTS: list[tuple[str, str]] = [
         "model_id_unique",
         "CREATE CONSTRAINT model_id_unique IF NOT EXISTS "
         "FOR (m:Model) REQUIRE m.model_id IS UNIQUE",
+    ),
+    (
+        "industry_name_unique",
+        "CREATE CONSTRAINT industry_name_unique IF NOT EXISTS "
+        "FOR (i:Industry) REQUIRE i.name IS UNIQUE",
     ),
 ]
 

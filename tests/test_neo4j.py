@@ -40,17 +40,18 @@ class TestSchemaConstants:
     """Tests for NodeLabel and RelType constants."""
 
     def test_node_labels_defined(self) -> None:
-        """All 6 node label constants are defined."""
+        """All 7 node label constants are defined."""
         from db.neo4j.schema import NodeLabel
         assert NodeLabel.ASSET == "Asset"
         assert NodeLabel.SECTOR == "Sector"
+        assert NodeLabel.INDUSTRY == "Industry"
         assert NodeLabel.MACRO_INDICATOR == "MacroIndicator"
         assert NodeLabel.EVENT == "Event"
         assert NodeLabel.SIGNAL == "Signal"
         assert NodeLabel.MODEL == "Model"
 
     def test_rel_types_defined(self) -> None:
-        """All 7 relationship type constants are defined."""
+        """All 8 relationship type constants are defined."""
         from db.neo4j.schema import RelType
         assert RelType.CORRELATED_WITH == "CORRELATED_WITH"
         assert RelType.CAUSES == "CAUSES"
@@ -59,6 +60,7 @@ class TestSchemaConstants:
         assert RelType.TRAINED_ON == "TRAINED_ON"
         assert RelType.TRIGGERED_BY == "TRIGGERED_BY"
         assert RelType.IMPACTS == "IMPACTS"
+        assert RelType.PART_OF == "PART_OF"
 
     def test_constraints_list_not_empty(self) -> None:
         """CONSTRAINTS list has at least one entry per node label."""
