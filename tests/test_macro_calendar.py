@@ -7,6 +7,8 @@ from data.agents.macro_calendar import (
     generate_events,
     EVENT_DEFINITIONS,
     FOMC_2026_DATES,
+    CPI_2026_DATES,
+    NFP_2026_DATES,
 )
 
 
@@ -71,3 +73,34 @@ class TestGenerateEvents:
             # Date is always the last 10 chars
             date_part = ev["event_id"][-10:]
             assert date_part.startswith("2026-")
+
+    def test_fomc_dates_match_fed_schedule(self) -> None:
+        """FOMC dates should match the Federal Reserve published schedule."""
+        events = generate_events(2026)
+        fomc = sorted(e["event_date"] for e in events if e["event_type"] == "FOMC")
+        # Verified against federalreserve.gov/monetarypolicy/fomccalendars.htm
+        assert fomc[0] == "2026-01-28"
+        assert fomc[2] == "2026-04-29"  # was incorrectly May 6
+        assert fomc[6] == "2026-10-28"  # was incorrectly Nov 4
+        assert fomc[7] == "2026-12-09"  # was incorrectly Dec 16
+
+    def test_cpi_uses_exact_2026_dates(self) -> None:
+        """CPI events for 2026 should use verified BLS dates, not approximations."""
+        events = generate_events(2026)
+        cpi_dates = sorted(e["event_date"] for e in events if e["event_type"] == "CPI")
+        assert cpi_dates[0] == "2026-01-13"
+        assert cpi_dates[1] == "2026-02-11"  # approximate was Feb 13
+        assert cpi_dates[5] == "2026-06-10"  # approximate was Jun 13
+
+    def test_nfp_uses_exact_2026_dates(self) -> None:
+        """NFP events for 2026 should use verified BLS dates."""
+        events = generate_events(2026)
+        nfp_dates = sorted(e["event_date"] for e in events if e["event_type"] == "NFP")
+        assert nfp_dates[0] == "2026-01-09"
+        assert nfp_dates[3] == "2026-04-03"  # approximate was Apr 5
+
+    def test_pce_count_for_2026(self) -> None:
+        """PCE uses hardcoded 2026 dates — may have >12 releases."""
+        events = generate_events(2026)
+        pce = [e for e in events if e["event_type"] == "PCE"]
+        assert len(pce) >= 12

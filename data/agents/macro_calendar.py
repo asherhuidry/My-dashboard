@@ -95,18 +95,60 @@ EVENT_DEFINITIONS: list[dict[str, Any]] = [
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2026 FOMC meeting dates (known schedule)
+# 2026 hardcoded schedules (verified against authoritative sources)
 # ─────────────────────────────────────────────────────────────────────────────
 
+# FOMC statement dates — source: federalreserve.gov/monetarypolicy/fomccalendars.htm
 FOMC_2026_DATES: list[date] = [
-    date(2026, 1, 28),
-    date(2026, 3, 18),
-    date(2026, 5, 6),
-    date(2026, 6, 17),
-    date(2026, 7, 29),
-    date(2026, 9, 16),
-    date(2026, 11, 4),
-    date(2026, 12, 16),
+    date(2026, 1, 28),   # Jan 27-28
+    date(2026, 3, 18),   # Mar 17-18
+    date(2026, 4, 29),   # Apr 28-29
+    date(2026, 6, 17),   # Jun 16-17
+    date(2026, 7, 29),   # Jul 28-29
+    date(2026, 9, 16),   # Sep 15-16
+    date(2026, 10, 28),  # Oct 27-28
+    date(2026, 12, 9),   # Dec 8-9
+]
+
+# CPI release dates — source: bls.gov via guggenheiminvestments.com/us-economic-calendar
+CPI_2026_DATES: list[date] = [
+    date(2026, 1, 13), date(2026, 2, 11), date(2026, 3, 11),
+    date(2026, 4, 10), date(2026, 5, 12), date(2026, 6, 10),
+    date(2026, 7, 14), date(2026, 8, 12), date(2026, 9, 11),
+    date(2026, 10, 14), date(2026, 11, 10), date(2026, 12, 10),
+]
+
+# NFP (Employment Situation) release dates — source: bls.gov
+NFP_2026_DATES: list[date] = [
+    date(2026, 1, 9), date(2026, 2, 6), date(2026, 3, 6),
+    date(2026, 4, 3), date(2026, 5, 8), date(2026, 6, 5),
+    date(2026, 7, 2), date(2026, 8, 7), date(2026, 9, 4),
+    date(2026, 10, 2), date(2026, 11, 6), date(2026, 12, 4),
+]
+
+# PPI release dates — source: bls.gov
+PPI_2026_DATES: list[date] = [
+    date(2026, 1, 14), date(2026, 2, 12), date(2026, 3, 12),
+    date(2026, 4, 14), date(2026, 5, 13), date(2026, 6, 11),
+    date(2026, 7, 15), date(2026, 8, 13), date(2026, 9, 10),
+    date(2026, 10, 15), date(2026, 11, 13), date(2026, 12, 15),
+]
+
+# GDP advance estimate dates — source: bea.gov/news/schedule
+GDP_2026_DATES: list[date] = [
+    date(2026, 1, 29),   # Q4 2025 advance (may shift)
+    date(2026, 4, 30),   # Q1 2026 advance
+    date(2026, 7, 30),   # Q2 2026 advance
+    date(2026, 10, 29),  # Q3 2026 advance
+]
+
+# PCE (Personal Income and Outlays) release dates — source: bea.gov/news/schedule
+PCE_2026_DATES: list[date] = [
+    date(2026, 1, 30), date(2026, 2, 27), date(2026, 3, 27),
+    date(2026, 4, 9), date(2026, 4, 30), date(2026, 5, 28),
+    date(2026, 6, 25), date(2026, 7, 30), date(2026, 8, 26),
+    date(2026, 9, 30), date(2026, 10, 29), date(2026, 11, 25),
+    date(2026, 12, 23),
 ]
 
 
@@ -165,15 +207,28 @@ def generate_events(year: int = 2026) -> list[dict[str, Any]]:
     """
     events: list[dict[str, Any]] = []
 
+    # Hardcoded 2026 schedules keyed by event_type
+    _hardcoded_2026: dict[str, list[date]] = {
+        "FOMC": FOMC_2026_DATES,
+        "CPI": CPI_2026_DATES,
+        "NFP": NFP_2026_DATES,
+        "PPI": PPI_2026_DATES,
+        "GDP": GDP_2026_DATES,
+        "PCE": PCE_2026_DATES,
+    }
+
     for defn in EVENT_DEFINITIONS:
         event_type = defn["event_type"]
 
-        if event_type == "FOMC":
+        # Use verified hardcoded dates for 2026 when available
+        if year == 2026 and event_type in _hardcoded_2026:
+            dates = _hardcoded_2026[event_type]
+        elif event_type == "FOMC":
             dates = [d for d in FOMC_2026_DATES if d.year == year]
         elif defn["frequency"] == "quarterly":
             dates = _generate_quarterly_dates(year)
         else:
-            # Monthly releases: approximate day varies by type
+            # Approximate dates for years without hardcoded schedules
             day_map = {
                 "CPI": 13, "NFP": 5, "PCE": 28, "PPI": 14,
                 "ISM_MFG": 1, "RETAIL_SALES": 16,
