@@ -8,6 +8,7 @@ import Overview      from './pages/Overview'
 import Sources       from './pages/Sources'
 import Discoveries   from './pages/Discoveries'
 import NetworkPage   from './pages/Network'
+import Intelligence  from './pages/Intelligence'
 
 // ── Secondary (accessible via URL, not in main nav) ─────────────
 import Analyzer      from './pages/Analyzer'
@@ -25,25 +26,26 @@ export default function App() {
   return (
     <QueryClientProvider client={qc}>
       <BrowserRouter>
-        <div className="flex h-screen overflow-hidden bg-bg">
+        <div className="flex h-screen overflow-hidden bg-bg-deep">
           <Sidebar />
           <main className="flex-1 ml-16 lg:ml-60 overflow-hidden flex flex-col">
             <div className="flex-1 overflow-hidden">
               <ErrorBoundary>
                 <Routes>
                   {/* Market Graph core */}
-                  <Route path="/"             element={<Overview />}     />
-                  <Route path="/network"      element={<NetworkPage />}  />
-                  <Route path="/discoveries"  element={<Discoveries />}  />
-                  <Route path="/sources"      element={<Sources />}      />
+                  <Route path="/"              element={<Overview />}      />
+                  <Route path="/network"       element={<NetworkPage />}   />
+                  <Route path="/intelligence"  element={<Intelligence />}  />
+                  <Route path="/discoveries"   element={<Discoveries />}   />
+                  <Route path="/sources"       element={<Sources />}       />
 
                   {/* Secondary — still accessible, not in sidebar */}
-                  <Route path="/analyze"      element={<Analyzer />}     />
-                  <Route path="/research"     element={<Research />}     />
-                  <Route path="/screener"     element={<Screener />}     />
-                  <Route path="/backtest"     element={<Backtest />}     />
-                  <Route path="/database"     element={<DatabasePage />} />
-                  <Route path="/evolution"    element={<EvolutionLog />} />
+                  <Route path="/analyze"       element={<Analyzer />}      />
+                  <Route path="/research"      element={<Research />}      />
+                  <Route path="/screener"      element={<Screener />}      />
+                  <Route path="/backtest"      element={<Backtest />}      />
+                  <Route path="/database"      element={<DatabasePage />}  />
+                  <Route path="/evolution"     element={<EvolutionLog />}  />
                 </Routes>
               </ErrorBoundary>
             </div>

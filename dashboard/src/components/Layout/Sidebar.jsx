@@ -2,10 +2,11 @@ import { NavLink } from 'react-router-dom'
 import { LayoutDashboard, Network, Compass, Globe, Brain } from 'lucide-react'
 
 const nav = [
-  { to:'/',              icon: LayoutDashboard,  label: 'Overview',       desc: 'Structural state' },
-  { to:'/network',       icon: Network,          label: 'Graph',          desc: 'Market structure'  },
-  { to:'/discoveries',   icon: Compass,          label: 'Discoveries',    desc: 'Edges & correlations' },
-  { to:'/sources',       icon: Globe,            label: 'Sources',        desc: 'Data origins'      },
+  { to:'/',              icon: LayoutDashboard,  label: 'Command',        desc: 'System overview' },
+  { to:'/network',       icon: Network,          label: 'Graph',          desc: 'Market structure' },
+  { to:'/intelligence',  icon: Brain,            label: 'Intelligence',   desc: 'Macro & analysis' },
+  { to:'/discoveries',   icon: Compass,          label: 'Discoveries',    desc: 'Edges & signals' },
+  { to:'/sources',       icon: Globe,            label: 'Sources',        desc: 'Data origins' },
 ]
 
 function NavSection({ items }) {
@@ -19,7 +20,7 @@ function NavSection({ items }) {
           className={({ isActive }) =>
             `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 group relative overflow-hidden ${
               isActive
-                ? 'bg-accent/12 text-accent border border-accent/20 shadow-glow'
+                ? 'bg-accent/10 text-accent border border-accent/20 shadow-glow'
                 : 'text-text-secondary hover:text-text hover:bg-bg-hover border border-transparent'
             }`
           }
@@ -57,25 +58,23 @@ function NavSection({ items }) {
 
 export default function Sidebar() {
   return (
-    <aside className="fixed left-0 top-0 h-full w-16 lg:w-60 z-40 flex flex-col
-      bg-bg-secondary border-r border-border overflow-hidden">
-
+    <aside className="fixed left-0 top-0 h-full w-16 lg:w-60 z-40 flex flex-col sidebar-bg">
       {/* Top accent line */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent" />
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-accent/50 to-transparent" />
 
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-border relative">
         <div className="relative flex-shrink-0">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent/30 to-purple/20
-            border border-accent/30 flex items-center justify-center shadow-glow">
-            <Brain size={17} className="text-accent" />
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent/25 to-purple/15
+            border border-accent/25 flex items-center justify-center shadow-glow">
+            <Brain size={17} className="text-accent-glow" />
           </div>
           <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-positive border-2 border-bg-secondary" />
         </div>
         <div className="hidden lg:block overflow-hidden">
           <div className="text-sm font-bold gradient-text leading-tight">FinBrain</div>
           <div className="text-[9px] text-text-muted uppercase tracking-[0.15em] leading-tight mt-0.5">
-            Market Graph
+            Market Graph Engine
           </div>
         </div>
       </div>
@@ -88,7 +87,7 @@ export default function Sidebar() {
       {/* Bottom status */}
       <div className="p-3 border-t border-border hidden lg:block">
         <div className="flex items-center gap-2 px-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-positive" />
+          <div className="w-1.5 h-1.5 rounded-full bg-positive status-dot" style={{ background: '#10b981' }} />
           <span className="text-[10px] text-text-muted">Graph Engine Active</span>
         </div>
       </div>

@@ -9,8 +9,8 @@ function LiveClock() {
   const pad = n => String(n).padStart(2,'0')
   return (
     <div className="flex items-center gap-2">
-      <div className="w-1.5 h-1.5 rounded-full bg-positive pulse-dot" />
-      <span className="ticker-value text-xs text-text-secondary">
+      <div className="w-1.5 h-1.5 rounded-full bg-positive status-dot" style={{ background: '#10b981' }} />
+      <span className="ticker-value text-[10px] text-text-secondary">
         {pad(t.getUTCHours())}:{pad(t.getUTCMinutes())}:{pad(t.getUTCSeconds())}{' '}
         <span className="text-text-muted">UTC</span>
       </span>
@@ -28,20 +28,19 @@ export default function Header({ title, subtitle }) {
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-3
-      bg-bg-secondary/80 backdrop-blur-xl border-b border-border">
+      bg-bg-secondary/85 backdrop-blur-2xl border-b border-border">
       {/* Left: title */}
       <div className="flex items-center gap-4">
         <div>
-          <h1 className="text-base font-semibold text-text leading-tight">{title}</h1>
-          {subtitle && <p className="text-[10px] text-text-muted leading-tight mt-0.5">{subtitle}</p>}
+          <h1 className="text-sm font-semibold text-text leading-tight">{title}</h1>
+          {subtitle && <p className="text-[9px] text-text-muted leading-tight mt-0.5">{subtitle}</p>}
         </div>
       </div>
 
       {/* Right: status + clock */}
-      <div className="flex items-center gap-5">
-        {/* Per-service health dots */}
+      <div className="flex items-center gap-4">
         {Object.keys(checks).length > 0 && (
-          <div className="hidden lg:flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-2.5">
             {Object.entries(checks).map(([k, v]) => {
               const Icon = SERVICE_ICONS[k] ?? Activity
               return (
@@ -61,13 +60,12 @@ export default function Header({ title, subtitle }) {
 
         <LiveClock />
 
-        {/* Overall status pill */}
-        <div className={`flex items-center gap-1.5 text-[10px] font-medium px-2.5 py-1 rounded-full border transition-all ${
+        <div className={`flex items-center gap-1.5 text-[9px] font-medium px-2 py-1 rounded-full border transition-all ${
           ok
-            ? 'text-positive border-positive/30 bg-positive/8'
-            : 'text-negative border-negative/30 bg-negative/8'
+            ? 'text-positive border-positive/25 bg-positive/6'
+            : 'text-negative border-negative/25 bg-negative/6'
         }`}>
-          {ok ? <Wifi size={10} /> : <WifiOff size={10} />}
+          {ok ? <Wifi size={9} /> : <WifiOff size={9} />}
           <span>{ok ? 'Live' : 'Offline'}</span>
         </div>
       </div>

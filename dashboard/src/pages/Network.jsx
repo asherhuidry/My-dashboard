@@ -5,18 +5,18 @@ import Header from '../components/Layout/Header'
 import ForceGraph from '../components/Network/ForceGraph'
 import Spinner from '../components/UI/Spinner'
 import { motion } from 'framer-motion'
-import { GitBranch, Network as NetworkIcon, AlertTriangle, TrendingUp, Zap, Filter, X } from 'lucide-react'
+import { GitBranch, Network as NetworkIcon, AlertTriangle, TrendingUp, Zap, Filter, X, Layers, Calendar } from 'lucide-react'
 
 const TABS = [
   { id:'graph', label:'Market Graph',  icon: GitBranch },
   { id:'corr',  label:'Correlations',  icon: NetworkIcon },
 ]
 
-const REL_TYPES = ['SENSITIVE_TO', 'CORRELATED_WITH', 'BELONGS_TO', 'HAS_FEATURES']
+const REL_TYPES = ['SENSITIVE_TO', 'CORRELATED_WITH', 'BELONGS_TO', 'PART_OF', 'REPORTS', 'HAS_FEATURES']
 const ASSET_CLASSES = ['equity', 'crypto', 'forex', 'commodity']
 const REGIMES = ['all', 'bear', 'stress']
 
-// ── Filter bar for knowledge graph ──────────────────────────────
+// ── Filter bar ──────────────────────────────────────────────────
 function GraphFilters({ filters, setFilters }) {
   const active = Object.values(filters).some(Boolean)
 
@@ -24,34 +24,34 @@ function GraphFilters({ filters, setFilters }) {
     setFilters(prev => ({ ...prev, [key]: val || null }))
 
   return (
-    <div className="flex items-center gap-3 flex-wrap">
-      <Filter size={11} className="text-text-muted" />
+    <div className="flex items-center gap-2.5 flex-wrap">
+      <Filter size={10} className="text-text-muted" />
 
       <select value={filters.rel_type ?? ''}
         onChange={e => set('rel_type', e.target.value)}
-        className="text-xs bg-bg border border-border rounded px-2 py-1 text-text-secondary focus:border-accent/50 outline-none">
+        className="text-[10px] bg-bg-hover border border-border rounded-lg px-2 py-1 text-text-secondary focus:border-accent/40 outline-none">
         <option value="">All edges</option>
         {REL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
       </select>
 
       <select value={filters.asset_class ?? ''}
         onChange={e => set('asset_class', e.target.value)}
-        className="text-xs bg-bg border border-border rounded px-2 py-1 text-text-secondary focus:border-accent/50 outline-none">
+        className="text-[10px] bg-bg-hover border border-border rounded-lg px-2 py-1 text-text-secondary focus:border-accent/40 outline-none">
         <option value="">All classes</option>
         {ASSET_CLASSES.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
       </select>
 
       <select value={filters.regime ?? ''}
         onChange={e => set('regime', e.target.value)}
-        className="text-xs bg-bg border border-border rounded px-2 py-1 text-text-secondary focus:border-accent/50 outline-none">
+        className="text-[10px] bg-bg-hover border border-border rounded-lg px-2 py-1 text-text-secondary focus:border-accent/40 outline-none">
         <option value="">All regimes</option>
         {REGIMES.map(r => <option key={r} value={r}>{r}</option>)}
       </select>
 
       {active && (
         <button onClick={() => setFilters({})}
-          className="text-[10px] text-text-muted hover:text-text flex items-center gap-1">
-          <X size={10} /> Clear
+          className="text-[9px] text-text-muted hover:text-text flex items-center gap-1 transition-colors">
+          <X size={9} /> Clear
         </button>
       )}
     </div>
@@ -61,22 +61,24 @@ function GraphFilters({ filters, setFilters }) {
 // ── Correlation controls ────────────────────────────────────────
 function CorrelationControls({ days, setDays, threshold, setThreshold }) {
   return (
-    <div className="flex items-center gap-4 flex-wrap">
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-text-muted">Window:</span>
+    <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-text-muted">Window:</span>
         {[21,63,126,252].map(d => (
           <button key={d} onClick={() => setDays(d)}
-            className={`text-xs px-2 py-1 rounded border transition-all ${days===d?'border-accent/40 bg-accent/10 text-accent':'border-border text-text-muted hover:text-text'}`}>
+            className={`text-[10px] px-2 py-1 rounded-lg border transition-all ${
+              days===d ? 'border-accent/30 bg-accent/10 text-accent' : 'border-border text-text-muted hover:text-text'
+            }`}>
             {d}D
           </button>
         ))}
       </div>
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-text-muted">Min |corr|:</span>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-text-muted">Min |r|:</span>
         <input type="range" min="0" max="0.9" step="0.05" value={threshold}
           onChange={e => setThreshold(parseFloat(e.target.value))}
-          className="w-24 accent-accent" />
-        <span className="ticker-value text-xs text-accent w-6">{threshold.toFixed(2)}</span>
+          className="w-20 accent-accent" />
+        <span className="ticker-value text-[10px] text-accent">{threshold.toFixed(2)}</span>
       </div>
     </div>
   )
@@ -87,6 +89,8 @@ const REL_COLORS = {
   SENSITIVE_TO:    '#f59e0b',
   CORRELATED_WITH: '#10b981',
   BELONGS_TO:      '#8b5cf6',
+  PART_OF:         '#a78bfa',
+  REPORTS:         '#06b6d4',
   HAS_FEATURES:    '#3b82f6',
 }
 
@@ -115,7 +119,7 @@ function NodeDetailPanel({ nodeName, onClose }) {
           <h3 className="text-sm font-semibold text-text">{nodeName}</h3>
           <button onClick={onClose} className="text-text-muted hover:text-text text-xs">{'\u2715'}</button>
         </div>
-        <p className="text-xs text-text-muted">No detail available from Neo4j for this node.</p>
+        <p className="text-[10px] text-text-muted">No detail available</p>
       </motion.div>
     )
   }
@@ -126,27 +130,25 @@ function NodeDetailPanel({ nodeName, onClose }) {
     <motion.div initial={{ x: 300, opacity: 0 }} animate={{ x: 0, opacity: 1 }}
       className="w-72 border-l border-border bg-bg-secondary overflow-y-auto">
 
-      {/* Header */}
       <div className="sticky top-0 bg-bg-secondary border-b border-border p-4 z-10">
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-sm font-semibold text-text">{node.name}</h3>
-            <div className="text-[10px] text-text-muted mt-0.5">
+            <div className="text-[9px] text-text-muted mt-0.5">
               {node.type}{node.class ? ` \u00B7 ${node.class}` : ''}{node.sector ? ` \u00B7 ${node.sector}` : ''}
             </div>
           </div>
           <button onClick={onClose} className="text-text-muted hover:text-text text-xs">{'\u2715'}</button>
         </div>
-        <div className="text-[10px] text-text-muted mt-1">{total_edges} edge{total_edges !== 1 ? 's' : ''}</div>
+        <div className="text-[9px] text-text-muted mt-1">{total_edges} edge{total_edges !== 1 ? 's' : ''}</div>
       </div>
 
-      {/* Relationships grouped by type */}
       <div className="p-4 space-y-4">
         {Object.entries(relationships).map(([relType, rels]) => (
           <div key={relType}>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-2 h-2 rounded-full" style={{ background: REL_COLORS[relType] ?? '#475569' }} />
-              <span className="text-[10px] font-semibold uppercase tracking-wider"
+              <span className="text-[9px] font-semibold uppercase tracking-wider"
                 style={{ color: REL_COLORS[relType] ?? '#94a3b8' }}>
                 {relType.replace(/_/g, ' ')}
               </span>
@@ -155,7 +157,7 @@ function NodeDetailPanel({ nodeName, onClose }) {
 
             <div className="space-y-1.5">
               {rels.map((rel, i) => (
-                <div key={i} className="rounded-lg border border-border/60 bg-bg px-2.5 py-2 text-[10px]">
+                <div key={i} className="rounded-lg border border-border/50 bg-bg-hover/30 px-2.5 py-2 text-[10px]">
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-text">{rel.neighbor}</span>
                     <span className="text-text-muted text-[9px]">
@@ -163,11 +165,10 @@ function NodeDetailPanel({ nodeName, onClose }) {
                     </span>
                   </div>
 
-                  {/* Confidence bar */}
                   {rel.confidence != null && (
                     <div className="mt-1 flex items-center gap-1.5">
                       <span className="text-[9px] text-text-muted w-5">conf</span>
-                      <div className="flex-1 h-1 bg-border/50 rounded-full overflow-hidden">
+                      <div className="flex-1 h-1 bg-border/40 rounded-full overflow-hidden">
                         <div className="h-full rounded-full transition-all" style={{
                           width: `${Math.round(rel.confidence * 100)}%`,
                           background: rel.confidence >= 0.7 ? '#10b981' : rel.confidence >= 0.4 ? '#f59e0b' : '#ef4444',
@@ -182,7 +183,6 @@ function NodeDetailPanel({ nodeName, onClose }) {
                     </div>
                   )}
 
-                  {/* Properties */}
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
                     {rel.beta != null && (
                       <span className="text-text-secondary">
@@ -200,40 +200,11 @@ function NodeDetailPanel({ nodeName, onClose }) {
                         </span>
                       </span>
                     )}
-                    {rel.pearson_r != null && (
-                      <span className="text-text-secondary">
-                        <span className="text-text-muted">pearson </span>{Number(rel.pearson_r).toFixed(3)}
-                      </span>
-                    )}
-                    {rel.p_value != null && (
-                      <span className="text-text-secondary">
-                        <span className="text-text-muted">p </span>{Number(rel.p_value).toFixed(4)}
-                      </span>
-                    )}
-                    {rel.granger_p != null && (
-                      <span className="text-text-secondary">
-                        <span className="text-text-muted">granger </span>{Number(rel.granger_p).toFixed(4)}
-                      </span>
-                    )}
-                    {rel.regime && (
-                      <span className="text-text-muted">{rel.regime}</span>
-                    )}
-                    {rel.factor_group && (
-                      <span className="text-text-muted">{rel.factor_group}</span>
-                    )}
+                    {rel.regime && <span className="text-text-muted">{rel.regime}</span>}
+                    {rel.factor_group && <span className="text-text-muted">{rel.factor_group}</span>}
                     {rel.strength && (
                       <span className="text-text-secondary">
                         <span className="text-text-muted">str </span>{rel.strength}
-                      </span>
-                    )}
-                    {rel.lag_days != null && (
-                      <span className="text-text-secondary">
-                        <span className="text-text-muted">lag </span>{rel.lag_days}d
-                      </span>
-                    )}
-                    {rel.window_days != null && (
-                      <span className="text-text-secondary">
-                        <span className="text-text-muted">win </span>{rel.window_days}d
                       </span>
                     )}
                   </div>
@@ -247,35 +218,35 @@ function NodeDetailPanel({ nodeName, onClose }) {
   )
 }
 
-// ── Graph health + reasoning panel ──────────────────────────────
+// ── Graph health panel ──────────────────────────────────────────
 function GraphHealthPanel({ intelligence }) {
   const { reasoning, confidence } = intelligence ?? {}
   if (!reasoning && !confidence) return null
 
   const health = reasoning?.structural_health
   const topFactor = reasoning?.most_influential_factor
-  const topExposed = reasoning?.most_exposed_asset
+  const stressed = reasoning?.most_stressed_sector
 
   const gradeColor = {
     excellent: '#10b981', good: '#3b82f6', fair: '#f59e0b', poor: '#ef4444',
   }
 
   return (
-    <div className="absolute top-4 right-4 glass rounded-lg px-3 py-2.5 text-xs space-y-2 w-52">
+    <div className="absolute top-4 right-4 glass-card rounded-xl px-3.5 py-3 text-xs space-y-2.5 w-52">
       <div className="text-[9px] text-text-muted uppercase tracking-wider font-semibold">Graph Health</div>
 
       {health && (
         <div className="space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-text-secondary">Overall</span>
-            <span className="ticker-value font-semibold" style={{ color: gradeColor[health.grade] ?? '#94a3b8' }}>
+            <span className="text-text-secondary text-[10px]">Overall</span>
+            <span className="ticker-value text-[10px] font-semibold" style={{ color: gradeColor[health.grade] ?? '#94a3b8' }}>
               {(health.score * 100).toFixed(0)}% {health.grade}
             </span>
           </div>
-          {Object.entries(health.components).map(([k, v]) => (
+          {Object.entries(health.components ?? {}).map(([k, v]) => (
             <div key={k} className="flex items-center gap-1.5">
-              <span className="text-[9px] text-text-muted w-16 truncate">{k}</span>
-              <div className="flex-1 h-1 bg-border/50 rounded-full overflow-hidden">
+              <span className="text-[9px] text-text-muted w-14 truncate capitalize">{k.replace(/_/g, ' ')}</span>
+              <div className="flex-1 h-1 bg-border/40 rounded-full overflow-hidden">
                 <div className="h-full bg-accent/60 rounded-full" style={{ width: `${Math.round(v * 100)}%` }} />
               </div>
               <span className="text-[9px] ticker-value text-text-secondary w-6 text-right">{(v * 100).toFixed(0)}%</span>
@@ -285,37 +256,31 @@ function GraphHealthPanel({ intelligence }) {
       )}
 
       {confidence && (
-        <div className="pt-1 border-t border-border/50 space-y-0.5">
+        <div className="pt-1.5 border-t border-border/50 space-y-0.5 text-[10px]">
           <div className="flex justify-between">
-            <span className="text-text-muted">Mean confidence</span>
+            <span className="text-text-muted">Confidence</span>
             <span className="ticker-value text-text">{(confidence.mean_confidence * 100).toFixed(0)}%</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-text-muted">Edges scored</span>
+            <span className="text-text-muted">Scored</span>
             <span className="ticker-value text-text">{confidence.scored_edges}</span>
           </div>
-          {confidence.reconfirmed > 0 && (
-            <div className="flex justify-between">
-              <span className="text-text-muted">Reconfirmed</span>
-              <span className="ticker-value text-accent">{confidence.reconfirmed}</span>
-            </div>
-          )}
         </div>
       )}
 
       {topFactor && (
-        <div className="pt-1 border-t border-border/50">
-          <div className="text-[9px] text-text-muted">Top factor</div>
+        <div className="pt-1.5 border-t border-border/50">
+          <div className="text-[9px] text-text-muted">Top bridge</div>
           <div className="text-[10px] text-text font-medium">{topFactor.factor_id}</div>
-          <div className="text-[9px] text-text-muted">{topFactor.asset_count} assets, {topFactor.class_count} classes</div>
         </div>
       )}
 
-      {topExposed && (
-        <div className="pt-1 border-t border-border/50">
-          <div className="text-[9px] text-text-muted">Most exposed</div>
-          <div className="text-[10px] text-text font-medium">{topExposed.asset}</div>
-          <div className="text-[9px] text-text-muted">divergence {topExposed.total_divergence.toFixed(3)}</div>
+      {stressed && (
+        <div className="pt-1.5 border-t border-border/50">
+          <div className="text-[9px] text-text-muted">Most stressed</div>
+          <div className="text-[10px] font-medium" style={{ color: stressed.stress_score >= 0.5 ? '#f87171' : '#fbbf24' }}>
+            {stressed.sector}
+          </div>
         </div>
       )}
     </div>
@@ -324,23 +289,25 @@ function GraphHealthPanel({ intelligence }) {
 
 // ── Insights strip ──────────────────────────────────────────────
 const PRIORITY_STYLES = {
-  1: { border: 'border-negative/30', bg: 'bg-negative/6', icon: 'text-negative' },
-  2: { border: 'border-warning/30',  bg: 'bg-warning/6',  icon: 'text-warning' },
-  3: { border: 'border-accent/30',   bg: 'bg-accent/6',   icon: 'text-accent' },
+  1: { border: 'border-negative/25', bg: 'bg-negative/5', icon: 'text-negative' },
+  2: { border: 'border-warning/25',  bg: 'bg-warning/5',  icon: 'text-warning' },
+  3: { border: 'border-accent/25',   bg: 'bg-accent/5',   icon: 'text-accent' },
 }
 
 function InsightIcon({ type }) {
-  if (type.includes('anomaly'))  return <AlertTriangle size={11} />
-  if (type.includes('bridge'))   return <Zap size={11} />
-  return <TrendingUp size={11} />
+  if (type.includes('anomaly'))  return <AlertTriangle size={10} />
+  if (type.includes('bridge'))   return <Zap size={10} />
+  if (type.includes('sector'))   return <Layers size={10} />
+  if (type.includes('earning'))  return <Calendar size={10} />
+  return <TrendingUp size={10} />
 }
 
 function InsightsPanel({ insights }) {
   if (!insights?.length) return null
   const top = insights.slice(0, 5)
   return (
-    <div className="border-t border-border bg-bg-secondary/60 px-5 py-3">
-      <div className="text-[9px] text-text-muted uppercase tracking-wider font-semibold mb-2">Top Structural Insights</div>
+    <div className="border-t border-border bg-bg-secondary/60 px-5 py-2.5">
+      <div className="text-[9px] text-text-muted uppercase tracking-wider font-semibold mb-1.5">Top Insights</div>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {top.map((ins, i) => {
           const s = PRIORITY_STYLES[ins.priority] ?? PRIORITY_STYLES[3]
@@ -402,12 +369,14 @@ export default function Network() {
       <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* Tab bar + controls */}
-        <div className="px-5 py-2.5 border-b border-border bg-bg-secondary/50 flex items-center gap-5 flex-wrap">
+        <div className="px-5 py-2 border-b border-border bg-bg-secondary/50 flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-1">
             {TABS.map(t => (
               <button key={t.id} onClick={() => { setTab(t.id); setSelectedNode(null); setFilters({}) }}
-                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all ${tab===t.id?'border-accent/40 bg-accent/10 text-accent':'border-border text-text-muted hover:text-text'}`}>
-                <t.icon size={11} /> {t.label}
+                className={`flex items-center gap-1.5 text-[10px] px-3 py-1.5 rounded-lg border transition-all ${
+                  tab===t.id ? 'border-accent/30 bg-accent/10 text-accent' : 'border-border text-text-muted hover:text-text'
+                }`}>
+                <t.icon size={10} /> {t.label}
               </button>
             ))}
           </div>
@@ -416,10 +385,10 @@ export default function Network() {
             <CorrelationControls days={days} setDays={setDays} threshold={threshold} setThreshold={setThreshold} />
           )}
           {tab === 'graph' && data?.source && (
-            <span className={`text-[10px] px-2 py-0.5 rounded border ml-auto ${
+            <span className={`text-[9px] px-2 py-0.5 rounded-lg border ml-auto ${
               data.source === 'neo4j'
-                ? 'border-positive/30 text-positive bg-positive/8'
-                : 'border-text-muted/30 text-text-muted bg-bg-hover'
+                ? 'border-positive/25 text-positive bg-positive/6'
+                : 'border-text-muted/25 text-text-muted bg-bg-hover'
             }`}>
               {data.source === 'neo4j' ? 'Live from Neo4j' : 'Neo4j unavailable'}
             </span>
@@ -435,54 +404,49 @@ export default function Network() {
               </div>
             ) : isEmpty ? (
               <div className="flex flex-col items-center justify-center h-full text-text-muted gap-3">
-                <GitBranch size={32} className="text-text-muted/40" />
+                <GitBranch size={32} className="text-text-muted/30" />
                 <div className="text-sm">No graph data available</div>
-                <div className="text-xs text-text-muted/60 max-w-sm text-center">
+                <div className="text-[10px] text-text-muted/60 max-w-sm text-center">
                   {tab === 'graph'
-                    ? 'Neo4j is not connected or the graph has not been materialized yet. Run the discovery pipeline to populate the market graph.'
+                    ? 'Neo4j is not connected or the graph has not been materialized yet.'
                     : 'Could not fetch correlation data.'}
                 </div>
               </div>
             ) : data ? (
-              <ForceGraph
-                nodes={data.nodes}
-                edges={data.edges}
-                onNodeClick={handleNodeClick}
-              />
+              <ForceGraph nodes={data.nodes} edges={data.edges} onNodeClick={handleNodeClick} />
             ) : null}
 
-            {/* Graph health panel (top-right) */}
             {tab === 'graph' && intelligence && <GraphHealthPanel intelligence={intelligence} />}
 
-            {/* Stats overlay */}
             {data && !loading && !isEmpty && (
-              <div className="absolute top-4 left-4 glass rounded-lg px-3 py-2 text-xs space-y-0.5">
-                <div className="flex items-center gap-1.5"><span className="text-text-secondary">Nodes:</span><span className="ticker-value text-text">{data.nodes?.length}</span></div>
-                <div className="flex items-center gap-1.5"><span className="text-text-secondary">Edges:</span><span className="ticker-value text-text">{data.edges?.length}</span></div>
+              <div className="absolute top-4 left-4 glass-card rounded-xl px-3 py-2.5 text-[10px] space-y-0.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-text-secondary">Nodes:</span>
+                  <span className="ticker-value text-text font-semibold">{data.nodes?.length}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-text-secondary">Edges:</span>
+                  <span className="ticker-value text-text font-semibold">{data.edges?.length}</span>
+                </div>
                 {tab === 'graph' && data.meta?.rel_types && (
-                  <div className="pt-1 mt-1 border-t border-border/50 space-y-0.5">
+                  <div className="pt-1 mt-1 border-t border-border/40 space-y-0.5">
                     {Object.entries(data.meta.rel_types).map(([rt, count]) => (
                       <div key={rt} className="flex items-center gap-1.5">
                         <div className="w-1.5 h-1.5 rounded-full" style={{ background: REL_COLORS[rt] ?? '#475569' }} />
-                        <span className="text-text-muted text-[10px]">{rt.replace(/_/g, ' ')}</span>
-                        <span className="ticker-value text-text-secondary text-[10px] ml-auto">{count}</span>
+                        <span className="text-text-muted">{rt.replace(/_/g, ' ')}</span>
+                        <span className="ticker-value text-text-secondary ml-auto">{count}</span>
                       </div>
                     ))}
                   </div>
-                )}
-                {tab === 'corr' && data.meta && (
-                  <div className="flex items-center gap-1.5"><span className="text-text-secondary">Window:</span><span className="ticker-value text-text">{data.meta.days}D</span></div>
                 )}
               </div>
             )}
           </div>
 
-          {/* Node detail panel */}
           {selectedNode && tab === 'graph' && (
             <NodeDetailPanel nodeName={selectedNode} onClose={() => setSelectedNode(null)} />
           )}
 
-          {/* Simple detail for correlation tab */}
           {selectedNode && tab === 'corr' && (
             <motion.div
               initial={{ x: 300, opacity: 0 }}
@@ -495,14 +459,13 @@ export default function Network() {
               </div>
               <div className="pt-2 border-t border-border">
                 <p className="text-[10px] text-text-muted">
-                  Edges show rolling return correlations. Thick = stronger. Green = positive, Red = inverse.
+                  Rolling return correlations. Thick = stronger. Green = positive, Red = inverse.
                 </p>
               </div>
             </motion.div>
           )}
         </div>
 
-        {/* Insights strip */}
         {intelligence?.insights && <InsightsPanel insights={intelligence.insights} />}
       </div>
     </div>
