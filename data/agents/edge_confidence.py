@@ -207,11 +207,43 @@ def score_edge(props: dict[str, Any]) -> float:
 # Temporal confidence decay
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Half-life in days: confidence halves every 90 days without reconfirmation.
+# Default half-life in days: confidence halves every 90 days without reconfirmation.
 _HALF_LIFE_DAYS: float = 90.0
+
+# Per-edge-type half-lives — different relationship types decay at different
+# rates because their structural stability varies:
+#   - BELONGS_TO (sector membership): essentially permanent, very long half-life
+#   - SENSITIVE_TO / IMPACTS: factor exposures shift slowly, ~180 days
+#   - CORRELATED_WITH: statistical correlations drift, ~60 days
+#   - CAUSES / TRIGGERED_BY: causal/temporal links are fragile, ~45 days
+#   - Unknown/other: default 90 days
+EDGE_TYPE_HALF_LIVES: dict[str, float] = {
+    "BELONGS_TO":      3650.0,  # ~10 years — sector membership rarely changes
+    "SENSITIVE_TO":     180.0,  # factor exposure shifts slowly
+    "IMPACTS":          180.0,  # macro impact edges shift slowly
+    "CORRELATED_WITH":   60.0,  # statistical correlations drift
+    "CAUSES":            45.0,  # Granger-causal links are fragile
+    "TRIGGERED_BY":      45.0,  # temporal event links are fragile
+    "GENERATES":         90.0,  # default
+    "TRAINED_ON":       365.0,  # model provenance is stable
+}
 
 # Minimum floor: even fully decayed edges retain 10% of raw confidence.
 _DECAY_FLOOR: float = 0.10
+
+
+def half_life_for_rel_type(rel_type: str | None) -> float:
+    """Look up the decay half-life for a given Neo4j relationship type.
+
+    Args:
+        rel_type: Neo4j relationship type string, or None.
+
+    Returns:
+        Half-life in days.
+    """
+    if rel_type is None:
+        return _HALF_LIFE_DAYS
+    return EDGE_TYPE_HALF_LIVES.get(rel_type, _HALF_LIFE_DAYS)
 
 
 def decay_confidence(
@@ -219,6 +251,7 @@ def decay_confidence(
     days_since_confirmed: float,
     evidence_count: int = 1,
     half_life: float = _HALF_LIFE_DAYS,
+    rel_type: str | None = None,
 ) -> float:
     """Apply temporal decay to raw confidence.
 
@@ -226,12 +259,16 @@ def decay_confidence(
     reduced via exponential decay.  Edges with higher ``evidence_count``
     decay more slowly (each reconfirmation adds 20% to the half-life).
 
+    When ``rel_type`` is provided, the base half-life is looked up from
+    ``EDGE_TYPE_HALF_LIVES`` (overriding the ``half_life`` parameter).
+
     Args:
         raw_confidence:       The stored confidence score [0-1].
         days_since_confirmed: Days since ``last_confirmed_at`` (or
                               ``first_seen_at`` if never reconfirmed).
         evidence_count:       How many independent runs confirmed this edge.
         half_life:            Base half-life in days (default 90).
+        rel_type:             Neo4j relationship type for per-type decay.
 
     Returns:
         Effective confidence after decay, floored at 10% of raw.
@@ -239,8 +276,11 @@ def decay_confidence(
     if days_since_confirmed <= 0:
         return _clamp(raw_confidence)
 
+    # Use per-edge-type half-life when rel_type is provided
+    base_hl = half_life_for_rel_type(rel_type) if rel_type else half_life
+
     # More reconfirmations → slower decay (each adds 20% to half-life)
-    adjusted_hl = half_life * (1.0 + 0.20 * max(evidence_count - 1, 0))
+    adjusted_hl = base_hl * (1.0 + 0.20 * max(evidence_count - 1, 0))
 
     import math
     decay_factor = math.pow(0.5, days_since_confirmed / adjusted_hl)

@@ -163,7 +163,7 @@ def export_graph_tensors(
                 raw_conf = float(record["confidence"])
                 age = float(record["age_days"]) if record["age_days"] is not None else 0.0
                 ev = int(record["evidence_count"])
-                weight = decay_confidence(raw_conf, age, evidence_count=ev)
+                weight = decay_confidence(raw_conf, age, evidence_count=ev, rel_type=rel)
             elif record["pearson_r"] is not None:
                 weight = abs(float(record["pearson_r"]))
             else:

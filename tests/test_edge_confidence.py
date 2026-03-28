@@ -455,6 +455,44 @@ class TestDecayConfidence:
         slow = decay_confidence(0.8, 45, half_life=180)
         assert slow > fast
 
+    def test_rel_type_belongs_to_decays_very_slowly(self) -> None:
+        """BELONGS_TO edges (sector membership) should barely decay."""
+        raw = 0.8
+        decayed = decay_confidence(raw, 365, rel_type="BELONGS_TO")
+        # 10-year half-life → after 1 year, ~7% decay → 0.74+
+        assert decayed > 0.70
+
+    def test_rel_type_causes_decays_fast(self) -> None:
+        """CAUSES edges (causal links) should decay faster than default."""
+        raw = 0.8
+        default = decay_confidence(raw, 90)  # default 90-day HL
+        causal = decay_confidence(raw, 90, rel_type="CAUSES")  # 45-day HL
+        assert causal < default
+
+    def test_rel_type_sensitive_to_decays_slowly(self) -> None:
+        """SENSITIVE_TO edges (factor exposure) should decay slower than default."""
+        raw = 0.8
+        default = decay_confidence(raw, 90)  # default 90-day HL
+        sensitivity = decay_confidence(raw, 90, rel_type="SENSITIVE_TO")  # 180-day HL
+        assert sensitivity > default
+
+    def test_rel_type_overrides_half_life_param(self) -> None:
+        """When rel_type is provided, it overrides the half_life parameter."""
+        raw = 0.8
+        # half_life=45 but BELONGS_TO should use 3650
+        result = decay_confidence(raw, 365, half_life=45, rel_type="BELONGS_TO")
+        # Without rel_type override, HL=45 would give ~0.003 at 365 days
+        without_override = decay_confidence(raw, 365, half_life=45)
+        assert result > 0.70  # BELONGS_TO barely decays
+        assert result > without_override * 5  # dramatically different
+
+    def test_unknown_rel_type_uses_default(self) -> None:
+        """Unknown relationship types should use the default 90-day half-life."""
+        raw = 0.8
+        default = decay_confidence(raw, 90)
+        unknown = decay_confidence(raw, 90, rel_type="SOME_UNKNOWN_TYPE")
+        assert abs(default - unknown) < 0.001
+
 
 # ── Staleness classification ────────────────────────────────────────────────
 

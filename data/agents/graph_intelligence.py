@@ -245,6 +245,7 @@ def query_edge_confidence_stats() -> dict[str, Any] | None:
                 RETURN
                   r.confidence                     AS raw_conf,
                   coalesce(r.evidence_count, 1)     AS ev_count,
+                  type(r)                           AS rel_type,
                   duration.between(
                     coalesce(r.last_confirmed_at, r.first_seen_at, datetime()),
                     datetime()
@@ -266,8 +267,9 @@ def query_edge_confidence_stats() -> dict[str, Any] | None:
             raw = float(r["raw_conf"])
             age = float(r["age_days"])
             ev = int(r["ev_count"])
+            rtype = r.get("rel_type")
 
-            eff = decay_confidence(raw, age, evidence_count=ev)
+            eff = decay_confidence(raw, age, evidence_count=ev, rel_type=rtype)
 
             raw_scores.append(raw)
             effective_scores.append(eff)
